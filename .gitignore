@@ -1,2 +1,7 @@
+.swp
+.log
+.tar.gz
+.zip
+
 target
 Cargo.lock
