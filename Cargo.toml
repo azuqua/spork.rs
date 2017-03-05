@@ -1,0 +1,16 @@
+[package]
+authors = ["Alec Embke <aembke@gmail.com>"]
+name = "spork"
+version = "0.1.0"
+
+[dependencies]
+libc = "0.2"
+sys-info = "0.4.1"
+kernel32-sys = "0.2"
+psapi-sys = "0.1"
+winapi = "0.2"
+chrono = "0.3"
+
+[features]
+default = []
+compile_unimplemented = []
