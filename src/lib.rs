@@ -205,7 +205,7 @@ pub struct Stats {
 ///
 /// TLDR: Be careful using `stat` and `stat_with_cpus` with `StatType::Process` across multiple threads running concurrently.
 ///
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Spork {
   history: History,
   platform: Platform,

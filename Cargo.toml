@@ -2,6 +2,12 @@
 authors = ["Alec Embke <aembke@gmail.com>"]
 name = "spork"
 version = "0.1.0"
+readme = "README.md"
+documentation = "http://azuqua.github.io/spork.rs"
+repository = "https://github.com/azuqua/spork.rs"
+license = "MIT"
+keywords = ["cpu", "memory", "usage"]
+categories = []
 
 [dependencies]
 libc = "0.2"
