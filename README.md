@@ -4,6 +4,7 @@ Spork
 CPU and memory usage inspection for threads and processes.
 
 [![Build Status](https://travis-ci.org/azuqua/spork.rs.svg?branch=master)](https://travis-ci.org/azuqua/spork.rs)
+[![Coverage Status](https://coveralls.io/repos/github/azuqua/spork.rs/badge.svg?branch=master)](https://coveralls.io/github/azuqua/spork.rs?branch=master)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 # Install
