@@ -7,7 +7,6 @@ use std::collections::HashMap;
 
 use super::*;
 
-
 pub fn get_thread_id() -> usize {
   thread_id::get()
 }
@@ -68,13 +67,13 @@ pub fn safe_unsigned_sub(lhs: i64, rhs: i64) -> u64 {
   (lhs - rhs).wrapping_abs() as u64
 }
 
-pub fn calc_duration(kind: &StatType, history: &History, started: u64, polled: u64) -> u64 {
+pub fn calc_duration(kind: &StatType, history: &History, started: i64, polled: i64) -> u64 {
   let last = match history.get_last(kind) {
     Some(stats) => stats.polled,
     None => started
   };
 
-  last - polled
+  safe_unsigned_sub(last, polled)
 }
 
 pub fn now_ms() -> i64 {
@@ -120,6 +119,13 @@ pub fn get_num_cores() -> Result<usize, Error> {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn should_get_thread_id() {
+    let id = get_thread_id();
+    // FIXME make this smarter
+    assert!(id > 0);
+  }
 
   #[test]
   #[cfg(unix)]
@@ -194,15 +200,132 @@ mod tests {
   }
 
   #[test]
+  fn should_create_empty_history() {
+    let history = History::default();
+    assert_eq!(history.process, None);
+    assert!(history.thread.is_empty());
+    assert!(history.children.is_empty());
+  }
+
+  #[test]
+  fn should_set_last_process_history() {
+    let mut history = History::default();
+    let stats = Stats::new_empty(StatType::Process);
+    let last = history.set_last(&StatType::Process, stats);
+    assert_eq!(last, None);
+  }
+
+  #[test]
+  fn should_set_last_thread_history() {
+    let mut history = History::default();
+    let stats = Stats::new_empty(StatType::Thread);
+    let last = history.set_last(&StatType::Thread, stats);
+    assert_eq!(last, None);
+  }
+
+  #[test]
+  fn should_set_last_children_history() {
+    let mut history = History::default();
+    let stats = Stats::new_empty(StatType::Children);
+    let last = history.set_last(&StatType::Children, stats);
+    assert_eq!(last, None);
+  }
+
+  #[test]
+  fn should_get_last_process_history() {
+    let mut history = History::default();
+    let last = history.get_last(&StatType::Process);
+    assert_eq!(last, None);
+
+    let stats = Stats::new_empty(StatType::Process);
+    let last = history.set_last(&StatType::Process, stats.clone());
+    assert_eq!(last, None);
+
+    let last = history.get_last(&StatType::Process);
+    assert!(last.is_some());
+    let last_stats = last.unwrap();
+    assert_eq!(last_stats, stats);
+  }
+
+  #[test]
+  fn should_get_last_thread_history() {
+    let mut history = History::default();
+    let last = history.get_last(&StatType::Thread);
+    assert_eq!(last, None);
+
+    let stats = Stats::new_empty(StatType::Thread);
+    let last = history.set_last(&StatType::Thread, stats.clone());
+    assert_eq!(last, None);
+
+    let last = history.get_last(&StatType::Thread);
+    assert!(last.is_some());
+    let last_stats = last.unwrap();
+    assert_eq!(last_stats, stats);
+  }
+
+  #[test]
+  fn should_get_last_children_history() {
+    let mut history = History::default();
+    let last = history.get_last(&StatType::Children);
+    assert_eq!(last, None);
+
+    let stats = Stats::new_empty(StatType::Children);
+    let last = history.set_last(&StatType::Children, stats.clone());
+    assert_eq!(last, None);
+
+    let last = history.get_last(&StatType::Children);
+    assert!(last.is_some());
+    let last_stats = last.unwrap();
+    assert_eq!(last_stats, stats);
+  }
+
+  #[test]
   fn should_calc_duration_with_started() {
+    let history = History::default();
+    let kind = StatType::Thread;
+    let started = 1_i64;
+    let polled = 1000_i64;
 
-
+    let duration = calc_duration(&kind, &history, started, polled);
+    assert_eq!(duration, (polled - started) as u64);
   }
 
   #[test]
   fn should_calc_duration_with_history() {
+    let mut history = History::default();
+    let kind = StatType::Thread;
+    let started = 1_i64;
+    let polled = 1000_i64;
 
+    let stats = Stats::new_empty(kind.clone());
+    // stats.polled will be 0
+    history.set_last(&kind, stats.clone());
 
+    let duration = calc_duration(&kind, &history, started, polled);
+    assert_eq!(duration, (polled - stats.polled) as u64);
+  }
+
+  #[test]
+  fn should_do_valid_safe_unsigned_sub() {
+    let lhs = 100_i64;
+    let rhs = 50_i64;
+    let sub = safe_unsigned_sub(lhs, rhs);
+    assert_eq!(sub, (lhs - rhs) as u64);
+  }
+
+  #[test]
+  fn should_do_invalid_safe_unsigned_sub() {
+    let lhs = 100_i64;
+    let rhs = -50_i64;
+    let sub = safe_unsigned_sub(lhs, rhs);
+    assert_eq!(sub, 150_u64);
+  }
+
+  #[test]
+  fn should_get_now_ms() {
+    let now = now_ms();
+    // FIXME make this smarter
+    assert!(now > 0);
   }
 
 }
