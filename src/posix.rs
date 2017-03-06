@@ -11,6 +11,9 @@ use super::*;
 use utils;
 use utils::{CpuTime, History};
 
+use std::io::Read;
+use std::fs::File;
+
 fn empty_rusage() -> rusage {
   libc::rusage {
     ru_utime: timeval {
@@ -66,10 +69,7 @@ pub fn get_cpu_percent(kind: &StatType, hz: u64, duration: u64, val: &rusage) ->
   utils::calc_cpu_percent(duration, hz, &times)
 }
 
-
 // -----------------------------------------
-
-
 
 #[cfg(test)]
 mod tests {

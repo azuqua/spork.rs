@@ -1,8 +1,16 @@
 
 use sys_info;
 use chrono::UTC;
+use thread_id;
+
+use std::collections::HashMap;
 
 use super::*;
+
+
+pub fn get_thread_id() -> usize {
+  thread_id::get()
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CpuTime {
@@ -13,8 +21,10 @@ pub struct CpuTime {
 #[derive(Clone, Debug)]
 pub struct History {
   process: Option<Stats>,
-  thread: Option<Stats>,
-  children: Option<Stats>
+  // maps thread_id's to the last polled stats 
+  thread: HashMap<usize, Stats>,
+  // maps thread_id's to the last polled stats
+  children: HashMap<usize, Stats>
 }
 
 impl Default for History {
@@ -22,8 +32,8 @@ impl Default for History {
   fn default() -> Self {
     History {
       process: None,
-      thread: None,
-      children: None
+      thread: HashMap::new(),
+      children: HashMap::new()
     }
   }
 
@@ -32,12 +42,13 @@ impl Default for History {
 impl History {
   
   pub fn set_last(&mut self, kind: &StatType, poll: Stats) -> Option<Stats> {
+    /// if thread or children, get thread_id
     let last = self.get_last(kind);
     
      match *kind {
       StatType::Process => { self.process = Some(poll); },
-      StatType::Thread => { self.thread = Some(poll); },
-      StatType::Children => { self.children = Some(poll); }
+      StatType::Thread => { self.thread.insert(get_thread_id(), poll); },
+      StatType::Children => { self.children.insert(get_thread_id(), poll); }
     };
 
     last
@@ -46,8 +57,8 @@ impl History {
   pub fn get_last(&self, kind: &StatType) -> Option<Stats> {
     match *kind {
       StatType::Process => self.process.clone(),
-      StatType::Thread => self.thread.clone(),
-      StatType::Children => self.children.clone()
+      StatType::Thread => self.thread.get(&get_thread_id()).cloned(),
+      StatType::Children => self.children.get(&get_thread_id()).cloned()
     }
   }
 
@@ -81,7 +92,7 @@ pub fn get_platform() -> Result<Platform, Error> {
 }
 
 pub fn calc_cpu_percent(duration_ms: u64, hz: u64, cpu: &CpuTime) -> f64 {
-  let cpu_time: f64 = (cpu.sec as f64) + (cpu.usec as f64 / 1000000_f64);
+  let cpu_time = (cpu.sec as f64) + (cpu.usec as f64 / 1000000_f64);
   let cpu_time_ms = cpu_time * 1000_f64;
   let cycles_ms = (hz as f64) * 1000_f64;
   let cycles_in_duration = (duration_ms as f64) *  cycles_ms;
@@ -97,18 +108,11 @@ pub fn get_cpu_speed() -> Result<u64, Error> {
   }
 }
 
-#[cfg(windows)]
-pub use windows::get_clock_ticks;
-
-#[cfg(unix)]
-pub use linux::get_clock_ticks;
-
-#[cfg(target_os="macos")]
-pub use macos::get_clock_ticks;
-
-#[cfg(all(feature="compile_unimplemented", not(any(unix, windows, target_os="macos"))))]
-pub fn get_clock_ticks() -> Result<u64, Error> {
-  Err(Error::unimplemented())
+pub fn get_num_cores() -> Result<usize, Error> {
+  match sys_info::cpu_num() {
+    Ok(n) => Ok(n as usize),
+    Err(e) => Err(Error::from(e))
+  }
 }
 
 // ---------------------------
@@ -118,19 +122,49 @@ mod tests {
   use super::*;
 
   #[test]
-  fn should_get_platform() {
-    let platform = get_platform();
-    assert_eq!(platform, Ok(Platform::Linux));
+  #[cfg(unix)]
+  fn should_get_linux_platform() {
+    assert_eq!(get_platform(), Ok(Platform::Linux));
+  }
+
+  #[test]
+  #[cfg(windows)]
+  fn should_get_windows_platform() {
+    assert_eq!(get_platform(), Ok(Platform::Windows));
+  }
+
+  #[test]
+  #[cfg(target_os="macos")]
+  fn should_get_macos_platform() {
+    assert_eq!(get_platform(), Ok(Platform::MacOS));
+  }
+
+  #[test]
+  #[cfg(not(any(unix, windows, target_os="macos")))]
+  fn should_get_unknown_platform() {
+    assert_eq!(get_platform(), Ok(Platform::Unknown));
   }
 
   #[test]
   fn should_get_cpu_speed() {
+    // FIXME make this smarter
     let speed = match get_cpu_speed() {
       Ok(s) => s,
       Err(e) => panic!("{:?}", e)
     };
 
     assert!(speed > 0);
+  }
+
+  #[test]
+  fn should_get_num_cores() {
+    // FIXME make this smarter
+    let cores = match get_num_cores() {
+      Ok(n) => n,
+      Err(e) => panic!("{:?}", e)
+    };
+
+    assert!(cores > 0);
   }
 
   #[test]
@@ -157,6 +191,18 @@ mod tests {
     let expected = 50_f64;
 
     assert_eq!(calc_cpu_percent(dur, hz, &time), expected);
+  }
+
+  #[test]
+  fn should_calc_duration_with_started() {
+
+
+  }
+
+  #[test]
+  fn should_calc_duration_with_history() {
+
+
   }
 
 }

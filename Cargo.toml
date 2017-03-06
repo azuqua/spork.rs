@@ -10,7 +10,11 @@ kernel32-sys = "0.2"
 psapi-sys = "0.1"
 winapi = "0.2"
 chrono = "0.3"
+thread-id = "3.0"
 
 [features]
 default = []
 compile_unimplemented = []
+
+[lib]
+doctest = false
