@@ -49,5 +49,5 @@ after_success:
       target/kcov target/debug/spork-*
 env:
   global:
-    - TRAVIS_CARGO_NIGHTLY_FEATURE=nightly
+    - TRAVIS_CARGO_NIGHTLY_FEATURE=""
     - secure: "WhneJiJXf9m/ewJM+DJLK/JrFrrVwsO45ai2r9uYnQRK0pXcUtOW/KN0qmvRNoMIyn7aM8/k8FozLaPIu6vuunvvsxSVCpX9EvRPkx9MZn/AcuFwf14rfzk895udED2U6eptaZAX+vvUpdV7GTqdWq/f1VaZm2DcNsj8BCvsLP8HdzHq8Jt4cVo/yIDLKm5ecNsIxjoQqHQWoTNrO+10S06y03vp49jugJL+78UxZ7PQOcn1d4t1SdUcVdRSVqh7SaVUsHurWYfEFIO6yCuUIkagn1o5h6OZvpKFcN6Z1MACdb1H1w6pvDopPwJOCc72WXkh1i3m+uk3wpID4ycjqhYTLI2sEOSnYf+3oUGR89Kw4UwDUgU6eechTxss5L3K8+1YtnmUdf96OSi0fhh8pz/7e5MlO7dUvjXjlywut4kml1xreISafurptOEw/EzEWpGoVO168h5103BZ1rK9jZDOixzTX0I8TKsjCBZpuFHYWXTu/8Xbz5BeRftX4rSwbLwngzvE9sHzfOciOtofTlu9q0ME1PnIsxykQ34Mt0ksABTSWpXpbCT25eocr0ztuvDNhHMIVZDdFaiRSTu39hN6MgrRgKJVlCI0utA+KENL/KeLIBsLHZHiBmfreNNrAchrMONl6nwNXoCQUhvNbTIjjKcapyjD26k83EQ0jSU="
