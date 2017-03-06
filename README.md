@@ -7,6 +7,8 @@ CPU and memory usage inspection for threads and processes.
 [![Coverage Status](https://coveralls.io/repos/github/azuqua/spork.rs/badge.svg?branch=master)](https://coveralls.io/github/azuqua/spork.rs?branch=master)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
+[Documentation](https://azuqua.github.io/spork.rs)
+
 # Install
 
 With [Cargo Edit](https://github.com/killercup/cargo-edit):
