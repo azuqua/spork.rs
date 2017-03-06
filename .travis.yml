@@ -1,4 +1,5 @@
 language: rust
+sudo: false
 matrix:
   fast_finish: true
   include:
@@ -7,7 +8,11 @@ matrix:
   - rust: beta
   - rust: stable
 cache:
-  apt: true
+  apt: 
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
   directories:
     - target/debug/deps
     - target/debug/build
@@ -19,17 +24,17 @@ branches:
   only:
     - master
     - develop
+before_script:
+  - |
+    pip install 'travis-cargo<0.2' --user &&
+    export PATH=$HOME/.local/bin:$PATH
 after_success: |-
-  sudo apt-get install libcurl4-openssl-dev libelf-dev libdw-dev &&
-  wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
-  tar xzf master.tar.gz && mkdir kcov-master/build && cd kcov-master/build && cmake .. && make &&
-  sudo make install && cd ../.. &&
-  kcov --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo target/kcov target/debug/spork-* &&
+  travis-cargo --only stable coveralls --no-sudo &&
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
   cargo doc &&
   echo "<meta http-equiv=refresh content=0;url=`echo $TRAVIS_REPO_SLUG | cut -d '/' -f 2`/index.html>" > target/doc/index.html &&
-  sudo pip install ghp-import &&
+  pip install ghp-import &&
   ghp-import -n target/doc &&
   git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
 
