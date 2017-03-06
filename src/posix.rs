@@ -108,6 +108,12 @@ mod tests {
   }
 
   #[test]
+  fn should_get_empty_rusage() {
+    let usage = empty_rusage();
+    assert_eq!(usage.ru_maxrss, 0);
+  }
+
+  #[test]
   fn should_get_clock_ticks() {
     let ticks = get_clock_ticks().unwrap();
     assert!(ticks > 0);
@@ -149,8 +155,5 @@ mod tests {
   
     assert!(cpu > 98.0);
   }
-
-
-
 
 }

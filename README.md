@@ -57,7 +57,9 @@ let t_stats = match spork.stats(StatType::Thread) {
   Ok(s) => s,
   Err(e) => panic!("Error polling thread stats! {:?}", e)
 };
-println!("Thread stats: {:?}", t_stats);
+
+println!("Thread CPU: {}%, Memory: {} bytes, Cores: {}, Type: {}, Polled at: {}", 
+  t_stats.cpu, t_stats.memory, t_stats.cores, t_stats.kind, t_stats.polled);
 ```
 
 # Tests

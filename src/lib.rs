@@ -173,10 +173,12 @@ pub enum Platform {
 }
 
 /// A struct holding CPU and memory usage information.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Stats {
-  /// Time at which the stats were polled, in ms since epoch.
-  pub polled: u64,
+  /// Time at which the stats were polled, in milliseconds since epoch.
+  pub polled: i64,
+  /// Duration over which CPU usage was calculated, in milliseconds.
+  pub duration: u64,
   /// Average CPU load (percentage) since the last poll.
   pub cpu: f64,
   /// Total working set size, in bytes. This can mean different things depending on the `StatType` used.
@@ -187,6 +189,22 @@ pub struct Stats {
   pub kind: StatType,
   /// The number of CPU cores considered when measuring the CPU usage.
   pub cores: usize
+}
+
+impl Stats {
+
+  pub fn new_empty(kind: StatType) -> Stats {
+    Stats {
+      kind: kind,
+      polled: 0,
+      duration: 0,
+      cpu: 0_f64,
+      memory: 0,
+      uptime: 0,
+      cores: 1
+    }
+  }
+
 }
 
 
