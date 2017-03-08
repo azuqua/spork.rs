@@ -150,7 +150,7 @@ impl Error {
 /// An enum describing how to scope the CPU and memory data. `Process` reads CPU and memory usage across the entire process
 /// and can be used with `stats_with_cpus`, `Children` reads CPU and memory for child threads of the calling thread and can 
 /// also be used with `stats_with_cpus`, and `Thread` reads CPU and memory for the calling thread only. On Linux or OS X (POSIX) 
-/// see [getrusage](http://man7.org/linux/man-pages/man2/getrusage.2.html) for more information, and on windows see 
+/// see [getrusage](http://man7.org/linux/man-pages/man2/getrusage.2.html) for more information, and on Windows see 
 /// [GetProcessMemoryInfo](https://msdn.microsoft.com/en-us/library/windows/desktop/ms683219(v=vs.85).aspx) and 
 /// [GetProcessTimes](https://msdn.microsoft.com/en-us/library/windows/desktop/ms683223(v=vs.85).aspx).
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -372,6 +372,13 @@ impl Spork {
   /// Get the number of CPU cores for your system.
   pub fn num_cores(&self) -> usize {
     self.cpus
+  }
+
+  /// Clear the stats history for the process or calling thread. This library works by tracking the timestamp of the last stats poll, per thread, such that polls from different threads do not interfere with each other.
+  /// However, the downside to this approach is that some extra data has to stick around. This function will delete the timestamp of the previous poll for the process or calling thread, and if the same thread
+  /// decides to call `stats` or `stats_with_cpus` again it will use the process' uptime as the duration over which to calculate CPU usage for the next call.
+  pub fn drop_history(&mut self, kind: &StatType) -> Option<Stats> {
+    self.history.clear_last(kind)
   }
 
 }

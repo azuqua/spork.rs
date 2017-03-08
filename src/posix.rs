@@ -141,7 +141,7 @@ mod tests {
   }
 
   #[test]
-  fn should_poll_cpu_fb_42() {
+  fn should_poll_cpu_fib_42() {
     let kind = StatType::Thread;
     let hz = utils::get_cpu_speed().unwrap();
     let last_rusage = get_stats(&kind);

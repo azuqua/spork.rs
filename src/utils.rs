@@ -41,7 +41,6 @@ impl Default for History {
 impl History {
   
   pub fn set_last(&mut self, kind: &StatType, poll: Stats) -> Option<Stats> {
-    /// if thread or children, get thread_id
     let last = self.get_last(kind);
     
      match *kind {
@@ -59,6 +58,18 @@ impl History {
       StatType::Thread => self.thread.get(&get_thread_id()).cloned(),
       StatType::Children => self.children.get(&get_thread_id()).cloned()
     }
+  }
+
+  pub fn clear_last(&mut self, kind: &StatType) -> Option<Stats> {
+    let last = self.get_last(kind);
+
+    match *kind {
+      StatType::Process => { self.process = None; },
+      StatType::Children => { self.children.remove(&get_thread_id()); },
+      StatType::Thread => { self.thread.remove(&get_thread_id()); }
+    };
+
+    last
   }
 
 }
@@ -303,6 +314,54 @@ mod tests {
 
     let duration = calc_duration(&kind, &history, started, polled);
     assert_eq!(duration, (polled - stats.polled) as u64);
+  }
+
+  #[test]
+  fn should_clear_process_history() {
+    let mut history = History::default();
+    let kind = StatType::Process;
+    let stats = Stats::new_empty(kind.clone());
+    
+    let last = history.set_last(&kind, stats.clone());
+    assert_eq!(last, None);
+
+    let cleared = history.clear_last(&kind);
+    assert_eq!(cleared, Some(stats));
+
+    let empty = history.get_last(&kind);
+    assert_eq!(empty, None);
+  }
+
+  #[test]
+  fn should_clear_thread_history() {
+    let mut history = History::default();
+    let kind = StatType::Thread;
+    let stats = Stats::new_empty(kind.clone());
+    
+    let last = history.set_last(&kind, stats.clone());
+    assert_eq!(last, None);
+
+    let cleared = history.clear_last(&kind);
+    assert_eq!(cleared, Some(stats));
+
+    let empty = history.get_last(&kind);
+    assert_eq!(empty, None);
+  }
+
+  #[test]
+  fn should_clear_children_history() {
+    let mut history = History::default();
+    let kind = StatType::Children;
+    let stats = Stats::new_empty(kind.clone());
+    
+    let last = history.set_last(&kind, stats.clone());
+    assert_eq!(last, None);
+
+    let cleared = history.clear_last(&kind);
+    assert_eq!(cleared, Some(stats));
+
+    let empty = history.get_last(&kind);
+    assert_eq!(empty, None);
   }
 
   #[test]
