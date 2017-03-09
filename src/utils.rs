@@ -101,6 +101,10 @@ pub fn get_platform() -> Result<Platform, Error> {
   }
 }
 
+pub fn scale_freq_by_cores(hz: u64, cores: usize) -> u64 {
+  hz * (cores as u64)
+}
+
 pub fn calc_cpu_percent(duration_ms: u64, hz: u64, cpu: &CpuTime) -> f64 {
   let cpu_time = (cpu.sec as f64) + (cpu.usec as f64 / 1000000_f64);
   let cpu_time_ms = cpu_time * 1000_f64;
@@ -125,11 +129,21 @@ pub fn get_num_cores() -> Result<usize, Error> {
   }
 }
 
+
+
 // ---------------------------
 
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn should_scale_freq_by_cores() {
+    let cores = 2_usize;
+    let freq = 1000_u64;
+    let expected = 2000_u64;
+    assert_eq!(scale_freq_by_cores(freq, cores), expected);
+  }
 
   #[test]
   fn should_get_thread_id() {

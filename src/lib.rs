@@ -256,10 +256,24 @@ impl Spork {
   ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
   /// ```
   #[cfg(any(unix, target_os="macos"))]
-  pub fn stats(&self, kind: StatType) -> Result<Stats, Error> {
-    let stats = posix::get_stats(&kind);
+  pub fn stats(&mut self, kind: StatType) -> Result<Stats, Error> {
+    let now = utils::now_ms();
+    let duration = utils::calc_duration(&kind, &self.history, self.started, now);
+    let usage = posix::get_stats(&kind);
+    let cpu = posix::get_cpu_percent(&kind, self.clock, duration, &usage);
 
-    unimplemented!();
+    let stats = Stats {
+      kind: kind.clone(),
+      polled: now,
+      duration: duration,
+      cpu: cpu,
+      memory: (usage.ru_maxrss as u64) * 1000,
+      uptime: utils::safe_unsigned_sub(now, self.started),
+      cores: 1
+    };
+
+    self.history.set_last(&kind, stats.clone());
+    Ok(stats)
   }
 
   /// Get CPU and memory statistics in a `Stats` instance for the provided `StatType` assuming usage across `count` CPU core(s).
@@ -280,8 +294,34 @@ impl Spork {
   ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
   /// ```
   #[cfg(any(unix, target_os="macos"))]
-  pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, Error> {
-    unimplemented!();
+  pub fn stats_with_cpus(&mut self, kind: StatType, cores: Option<usize>) -> Result<Stats, Error> {
+    let cores = match cores {
+      Some(c) => c,
+      None => self.cpus
+    };
+
+    if cores > self.cpus {
+      return Err(Error::new(ErrorKind::Unknown, "Invalid CPU count.".to_owned()));
+    }
+
+    let freq = utils::scale_freq_by_cores(self.clock, cores);
+    let now = utils::now_ms();
+    let duration = utils::calc_duration(&kind, &self.history, self.started, now);
+    let usage = posix::get_stats(&kind);
+    let cpu = posix::get_cpu_percent(&kind, freq, duration, &usage);
+
+    let stats = Stats {
+      kind: kind.clone(),
+      polled: now,
+      duration: duration,
+      cpu: cpu,
+      memory: (usage.ru_maxrss as u64) * 1000,
+      uptime: utils::safe_unsigned_sub(now, self.started),
+      cores: cores
+    };
+
+    self.history.set_last(&kind, stats.clone());
+    Ok(stats)
   }
 
   /// Get CPU and memory statistics in a `Stats` instance for the provided `StatType` assuming usage across only 1 CPU core.
@@ -389,6 +429,22 @@ impl Spork {
 mod tests {
   use super::*;
 
+  use std::thread;
+
+  macro_rules! sleep_ms(
+    ($($arg:tt)*) => { {
+      ::std::thread::sleep(::std::time::Duration::from_millis($($arg)*))
+    } } 
+  );
+
+  fn fib(n: u64) -> u64 {
+    if n > 2 {
+      fib(n - 1) + fib(n - 2) 
+    } else {
+      1
+    }
+  }
+
   #[test]
   fn should_create_invalid_stat_errors() {
     let msg = "Foo";
@@ -487,8 +543,90 @@ mod tests {
 
   #[test]
   #[cfg(unix)]
-  fn should_get_linux_stats() {
+  fn should_get_linux_process_stats_fib_25() {
+    let wait = 200;
+    let before = utils::now_ms() as u64;
+    let mut spork = Spork::new().unwrap();
 
+    sleep_ms!(wait);
+    // just enough to get the cpu safely above ~20%
+    fib(25);
+
+    let stats = match spork.stats(StatType::Process) {
+      Ok(s) => s,
+      Err(e) => panic!("Stats error {:?}", e)
+    };
+    let _final = utils::now_ms() as u64;
+
+    assert!(stats.cpu > 10_f64);
+    assert!(stats.memory > 0);
+    assert!(stats.duration >= wait);
+    assert!(stats.duration <= _final - before);
+    assert_eq!(stats.cores, 1);
+    assert_eq!(stats.kind, StatType::Process);
+    assert!(stats.uptime >= wait);
+    assert!(stats.uptime <= _final - before);
+    assert!(stats.polled <= _final as i64);
+  }
+
+  #[test]
+  #[cfg(unix)]
+  fn should_get_linux_thread_stats_fib_25() {
+    let wait = 150;
+    let before = utils::now_ms() as u64;
+    let mut spork = Spork::new().unwrap();
+
+    sleep_ms!(wait);
+    // just enough to get the cpu safely above ~20%
+    fib(25);
+
+    let stats = match spork.stats(StatType::Thread) {
+      Ok(s) => s,
+      Err(e) => panic!("Stats error {:?}", e)
+    };
+    let _final = utils::now_ms() as u64;
+
+    println!("{:?}", stats);
+    assert!(stats.cpu > 10_f64);
+    assert!(stats.memory > 0);
+    assert!(stats.duration >= wait);
+    assert!(stats.duration <= _final - before);
+    assert_eq!(stats.cores, 1);
+    assert_eq!(stats.kind, StatType::Thread);
+    assert!(stats.uptime >= wait);
+    assert!(stats.uptime <= _final - before);
+    assert!(stats.polled <= _final as i64);
+  }
+
+  #[test]
+  #[cfg(unix)]
+  fn should_get_linux_children_stats_fib_25() {
+    let wait = 250;
+    let before = utils::now_ms() as u64;
+    let mut spork = Spork::new().unwrap();
+
+    let jh = thread::spawn(move || {
+      sleep_ms!(wait);
+      fib(25);
+    });
+    let _ = jh.join();
+
+    let stats = match spork.stats(StatType::Children) {
+      Ok(s) => s,
+      Err(e) => panic!("Stats error {:?}", e)
+    };
+    let _final = utils::now_ms() as u64;
+
+    println!("{:?}", stats);
+    assert!(stats.cpu > 10_f64);
+    assert!(stats.memory > 0);
+    assert!(stats.duration >= wait);
+    assert!(stats.duration <= _final - before);
+    assert_eq!(stats.cores, 1);
+    assert_eq!(stats.kind, StatType::Children);
+    assert!(stats.uptime >= wait);
+    assert!(stats.uptime <= _final - before);
+    assert!(stats.polled <= _final as i64);
   }
 
   #[test]
