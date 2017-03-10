@@ -138,9 +138,9 @@ impl Error {
   /// Read the error's details.
   pub fn inner(&self) -> &str {
     match *self {
-      Error::InvalidStatType { desc: _, details: ref details } => details,
-      Error::Unimplemented { desc: _, details: ref details } => details,
-      Error::Unknown { desc: _, details: ref details } => details
+      Error::InvalidStatType { desc: _, ref details } => details,
+      Error::Unimplemented { desc: _, ref details } => details,
+      Error::Unknown { desc: _, ref details } => details
     }
   }
 
@@ -637,6 +637,35 @@ mod tests {
 
     println!("{:?}", stats);
     assert!(stats.cpu > expected_cpu);
+    assert!(stats.memory > 0);
+    assert!(stats.duration >= wait);
+    assert!(stats.duration <= _final - before);
+    assert_eq!(stats.cores, 1);
+    assert_eq!(stats.kind, StatType::Thread);
+    assert!(stats.uptime >= wait);
+    assert!(stats.uptime <= _final - before);
+    assert!(stats.polled <= _final as i64);
+  }
+
+  #[test]
+  #[cfg(unix)]
+  fn should_get_low_cpu_linux_thread_stats() {
+    let wait = rand_in_range(200, 400);
+    let expected_cpu = 1_f64;
+
+    let before = utils::now_ms() as u64;
+    let spork = Spork::new().unwrap();
+
+    sleep_ms!(wait);
+
+    let stats = match spork.stats(StatType::Thread) {
+      Ok(s) => s,
+      Err(e) => panic!("Stats error {:?}", e)
+    };
+    let _final = utils::now_ms() as u64;
+
+    println!("{:?}", stats);
+    assert!(stats.cpu < expected_cpu);
     assert!(stats.memory > 0);
     assert!(stats.duration >= wait);
     assert!(stats.duration <= _final - before);

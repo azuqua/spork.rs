@@ -16,10 +16,7 @@ use libc::rusage;
 use super::*;
 
 use utils;
-use utils::{CpuTime, History};
-
-use std::io::Read;
-use std::fs::File;
+use utils::CpuTime;
 
 fn empty_rusage() -> rusage {
   libc::rusage {
@@ -65,10 +62,12 @@ fn map_posix_resp(code: i32) -> Result<i32, Error> {
 }
 
 // jiffies
+#[allow(dead_code)]
 pub fn get_clock_ticks() -> Result<i64, Error> {
   Ok(unsafe { libc::sysconf(libc::_SC_CLK_TCK) })
 }
 
+#[allow(dead_code)]
 pub fn timespec_to_cpu_time(times: &timespec) -> CpuTime {
   CpuTime {
     sec: times.tv_sec.wrapping_abs() as u64,
@@ -127,7 +126,6 @@ pub fn get_cpu_percent(hz: u64, duration: u64, val: &rusage) -> f64 {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use utils::*;
 
   fn format_timeval(val: &timeval) -> String {
     format!(
@@ -136,6 +134,7 @@ mod tests {
     )
   }
 
+  #[allow(dead_code)]
   fn print_timeval(val: &timeval) {
     println!("{:?}", format_timeval(val));
   }
@@ -216,7 +215,7 @@ mod tests {
   fn should_poll_cpu_fib_42() {
     let kind = StatType::Thread;
     let hz = utils::get_cpu_speed().unwrap();
-    let last_rusage = match get_stats(&kind) {
+    let _ = match get_stats(&kind) {
       Ok(u) => u,
       Err(e) => panic!("Error getting stats {:?}", e)
     };

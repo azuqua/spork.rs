@@ -6,7 +6,7 @@ use thread_id;
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::BorrowMut;
 
 use super::*;
 
@@ -278,7 +278,7 @@ mod tests {
 
   #[test]
   fn should_set_last_process_history() {
-    let mut history = History::default();
+    let history = History::default();
     let stats = Stats::new_empty(StatType::Process);
     let last = history.set_last(&StatType::Process, stats);
     assert_eq!(last, None);
@@ -286,7 +286,7 @@ mod tests {
 
   #[test]
   fn should_set_last_thread_history() {
-    let mut history = History::default();
+    let history = History::default();
     let stats = Stats::new_empty(StatType::Thread);
     let last = history.set_last(&StatType::Thread, stats);
     assert_eq!(last, None);
@@ -294,7 +294,7 @@ mod tests {
 
   #[test]
   fn should_set_last_children_history() {
-    let mut history = History::default();
+    let history = History::default();
     let stats = Stats::new_empty(StatType::Children);
     let last = history.set_last(&StatType::Children, stats);
     assert_eq!(last, None);
@@ -302,7 +302,7 @@ mod tests {
 
   #[test]
   fn should_get_last_process_history() {
-    let mut history = History::default();
+    let history = History::default();
     let last = history.get_last(&StatType::Process);
     assert_eq!(last, None);
 
@@ -318,7 +318,7 @@ mod tests {
 
   #[test]
   fn should_get_last_thread_history() {
-    let mut history = History::default();
+    let history = History::default();
     let last = history.get_last(&StatType::Thread);
     assert_eq!(last, None);
 
@@ -334,7 +334,7 @@ mod tests {
 
   #[test]
   fn should_get_last_children_history() {
-    let mut history = History::default();
+    let history = History::default();
     let last = history.get_last(&StatType::Children);
     assert_eq!(last, None);
 
@@ -361,7 +361,7 @@ mod tests {
 
   #[test]
   fn should_calc_duration_with_history() {
-    let mut history = History::default();
+    let history = History::default();
     let kind = StatType::Thread;
     let started = 1_i64;
     let polled = 1000_i64;
@@ -376,7 +376,7 @@ mod tests {
 
   #[test]
   fn should_clear_process_history() {
-    let mut history = History::default();
+    let history = History::default();
     let kind = StatType::Process;
     let stats = Stats::new_empty(kind.clone());
     
@@ -392,7 +392,7 @@ mod tests {
 
   #[test]
   fn should_clear_thread_history() {
-    let mut history = History::default();
+    let history = History::default();
     let kind = StatType::Thread;
     let stats = Stats::new_empty(kind.clone());
     
@@ -408,7 +408,7 @@ mod tests {
 
   #[test]
   fn should_clear_children_history() {
-    let mut history = History::default();
+    let history = History::default();
     let kind = StatType::Children;
     let stats = Stats::new_empty(kind.clone());
     
