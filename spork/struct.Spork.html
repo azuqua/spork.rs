@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Spork` struct in crate `spork`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Spork">
+
+    <title>spork::Spork - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>spork</a></p><script>window.sidebarCurrent = {name: 'Spork', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>spork</a>::<wbr><a class='struct' href=''>Spork</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/spork/lib.rs.html#234-241' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct Spork { /* fields omitted */ }</pre><div class='docblock'><p>A struct to monitor CPU and memory usage.</p>
+
+<h3 id='important-notes' class='section-header'><a href='#important-notes'>Important Notes:</a></h3>
+<p>The <code>stats</code> and <code>stats_with_cpus</code> functions measure CPU usage by the time between calls (in ms), separated by 
+the provided <code>StatType</code>. For example, a single thread calling <code>stat</code> with the <code>StatType::Thread</code> option in a loop 
+every second will correctly measure usage across the previous 1 second interval for only that thread. However, if 
+for example two threads running in loops with different delays both try to read <code>stats</code> with <code>StatType::Process</code> 
+then the interval over which the CPU load is calculated will be the delta between whenever the function was last 
+called in <em>either</em> thread. Make sure your program accounts for this by using the correct <code>StatType</code> such that 
+multiple threads do not interfere with each other&#39;s intended sample rates. Using <code>stat</code> and <code>stat_with_cpus</code> with
+<code>StatType::Thread</code> across multiple concurrent threads will correctly measure the results for each thread individually.</p>
+
+<p>TLDR: Be careful using <code>stat</code> and <code>stat_with_cpus</code> with <code>StatType::Process</code> across multiple threads running concurrently.</p>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl <a class='struct' href='../spork/struct.Spork.html' title='spork::Spork'>Spork</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/spork/lib.rs.html#243-439' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.new' class='method'><span id='new.v' class='invisible'><code>fn <a href='#method.new' class='fnname'>new</a>() -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/result/enum.Result.html' title='core::result::Result'>Result</a>&lt;<a class='struct' href='../spork/struct.Spork.html' title='spork::Spork'>Spork</a>, <a class='enum' href='../spork/enum.Error.html' title='spork::Error'>Error</a>&gt;</code></span></h4>
+<div class='docblock'><p>Create a new <code>Spork</code> instance.</p>
+</div><h4 id='method.stats' class='method'><span id='stats.v' class='invisible'><code>fn <a href='#method.stats' class='fnname'>stats</a>(&amp;self, kind: <a class='enum' href='../spork/enum.StatType.html' title='spork::StatType'>StatType</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/result/enum.Result.html' title='core::result::Result'>Result</a>&lt;<a class='struct' href='../spork/struct.Stats.html' title='spork::Stats'>Stats</a>, <a class='enum' href='../spork/enum.Error.html' title='spork::Error'>Error</a>&gt;</code></span></h4>
+<div class='docblock'><p>Get CPU and memory statistics in a <code>Stats</code> instance for the provided <code>StatType</code> assuming usage across only 1 CPU core.</p>
+
+<pre class='rust rust-example-rendered'>
+<span class='kw'>let</span> <span class='ident'>spork</span> <span class='op'>=</span> <span class='ident'>Spork</span>::<span class='ident'>new</span>().<span class='ident'>unwrap</span>();
+<span class='kw'>let</span> <span class='ident'>stats</span> <span class='op'>=</span> <span class='ident'>spork</span>.<span class='ident'>stats</span>(<span class='ident'>StatType</span>::<span class='ident'>Thread</span>).<span class='ident'>unwrap</span>();
+
+<span class='macro'>println</span><span class='macro'>!</span>(<span class='string'>&quot;CPU: {}%, Memory: {} bytes, Cores: {}, Type: {}, Polled at: {}&quot;</span>, 
+  <span class='ident'>stats</span>.<span class='ident'>cpu</span>, <span class='ident'>stats</span>.<span class='ident'>memory</span>, <span class='ident'>stats</span>.<span class='ident'>cores</span>, <span class='ident'>stats</span>.<span class='ident'>kind</span>, <span class='ident'>stats</span>.<span class='ident'>polled</span>);</pre>
+</div><h4 id='method.stats_with_cpus' class='method'><span id='stats_with_cpus.v' class='invisible'><code>fn <a href='#method.stats_with_cpus' class='fnname'>stats_with_cpus</a>(&amp;self,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; kind: <a class='enum' href='../spork/enum.StatType.html' title='spork::StatType'>StatType</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; cores: <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>&gt;)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/result/enum.Result.html' title='core::result::Result'>Result</a>&lt;<a class='struct' href='../spork/struct.Stats.html' title='spork::Stats'>Stats</a>, <a class='enum' href='../spork/enum.Error.html' title='spork::Error'>Error</a>&gt;</code></span></h4>
+<div class='docblock'><p>Get CPU and memory statistics in a <code>Stats</code> instance for the provided <code>StatType</code> assuming usage across <code>count</code> CPU core(s).
+If <code>None</code> is provided then all available CPU cores will be considered, where applicable.</p>
+
+<pre class='rust rust-example-rendered'>
+<span class='kw'>let</span> <span class='ident'>spork</span> <span class='op'>=</span> <span class='ident'>Spork</span>::<span class='ident'>new</span>().<span class='ident'>unwrap</span>();
+<span class='comment'>// read stats across all available CPU cores</span>
+<span class='kw'>let</span> <span class='ident'>stats</span> <span class='op'>=</span> <span class='ident'>spork</span>.<span class='ident'>stats_with_cpus</span>(<span class='ident'>StatType</span>::<span class='ident'>Thread</span>, <span class='prelude-val'>None</span>).<span class='ident'>unwrap</span>();
+
+<span class='macro'>println</span><span class='macro'>!</span>(<span class='string'>&quot;CPU: {}%, Memory: {} bytes, Cores: {}, Type: {}, Polled at: {}&quot;</span>, 
+  <span class='ident'>stats</span>.<span class='ident'>cpu</span>, <span class='ident'>stats</span>.<span class='ident'>memory</span>, <span class='ident'>stats</span>.<span class='ident'>cores</span>, <span class='ident'>stats</span>.<span class='ident'>kind</span>, <span class='ident'>stats</span>.<span class='ident'>polled</span>);
+
+<span class='comment'>// read stats considering only 2 CPU cores</span>
+<span class='kw'>let</span> <span class='ident'>stats</span> <span class='op'>=</span> <span class='ident'>spork</span>.<span class='ident'>stats_with_cpus</span>(<span class='ident'>StatType</span>::<span class='ident'>Thread</span>, <span class='prelude-val'>Some</span>(<span class='number'>2</span>));
+
+<span class='macro'>println</span><span class='macro'>!</span>(<span class='string'>&quot;CPU: {}%, Memory: {} bytes, Cores: {}, Type: {}, Polled at: {}&quot;</span>, 
+  <span class='ident'>stats</span>.<span class='ident'>cpu</span>, <span class='ident'>stats</span>.<span class='ident'>memory</span>, <span class='ident'>stats</span>.<span class='ident'>cores</span>, <span class='ident'>stats</span>.<span class='ident'>kind</span>, <span class='ident'>stats</span>.<span class='ident'>polled</span>);</pre>
+</div><h4 id='method.platform' class='method'><span id='platform.v' class='invisible'><code>fn <a href='#method.platform' class='fnname'>platform</a>(&amp;self) -&gt; <a class='enum' href='../spork/enum.Platform.html' title='spork::Platform'>Platform</a></code></span></h4>
+<div class='docblock'><p>Get the system type.</p>
+</div><h4 id='method.clock_speed' class='method'><span id='clock_speed.v' class='invisible'><code>fn <a href='#method.clock_speed' class='fnname'>clock_speed</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u64.html'>u64</a></code></span></h4>
+<div class='docblock'><p>Get the CPU clock speed, in Hz.</p>
+</div><h4 id='method.num_cores' class='method'><span id='num_cores.v' class='invisible'><code>fn <a href='#method.num_cores' class='fnname'>num_cores</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a></code></span></h4>
+<div class='docblock'><p>Get the number of CPU cores for your system.</p>
+</div><h4 id='method.drop_history' class='method'><span id='drop_history.v' class='invisible'><code>fn <a href='#method.drop_history' class='fnname'>drop_history</a>(&amp;self, kind: <a class='enum' href='../spork/enum.StatType.html' title='spork::StatType'>StatType</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='../spork/struct.Stats.html' title='spork::Stats'>Stats</a>&gt;</code></span></h4>
+<div class='docblock'><p>Clear the stats history for the process or calling thread. This library works by tracking the timestamp of the last stats poll, per thread, such that polls from different threads do not interfere with each other.
+However, the downside to this approach is that some extra data has to stick around. This function will delete the timestamp of the previous poll for the process or calling thread, and if the same thread
+decides to call <code>stats</code> or <code>stats_with_cpus</code> again it will use the process&#39; uptime as the duration over which to calculate CPU usage for the next call.
+If a <code>Spork</code> instance is shared among multiple threads with short lifespans then it&#39;s a good idea to call this when those threads exit.</p>
+</div><h4 id='method.read_history' class='method'><span id='read_history.v' class='invisible'><code>fn <a href='#method.read_history' class='fnname'>read_history</a>(&amp;self, kind: <a class='enum' href='../spork/enum.StatType.html' title='spork::StatType'>StatType</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='../spork/struct.Stats.html' title='spork::Stats'>Stats</a>&gt;</code></span></h4>
+<div class='docblock'><p>Read a copy of the most recently polled stats for <code>kind</code>.</p>
+</div></div><h2 id='implementations'>Trait Implementations</h2><h3 class='impl'><span class='in-band'><code>impl <a class='trait' href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html' title='core::clone::Clone'>Clone</a> for <a class='struct' href='../spork/struct.Spork.html' title='spork::Spork'>Spork</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/spork/lib.rs.html#233' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.clone' class='method'><span id='clone.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone' class='fnname'>clone</a>(&amp;self) -&gt; <a class='struct' href='../spork/struct.Spork.html' title='spork::Spork'>Spork</a></code></span></h4>
+<div class='docblock'><p>Returns a copy of the value. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone">Read more</a></p>
+</div><h4 id='method.clone_from' class='method'><span id='clone_from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: &amp;Self)</code><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div></span></h4>
+<div class='docblock'><p>Performs copy-assignment from <code>source</code>. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from">Read more</a></p>
+</div></div><h3 class='impl'><span class='in-band'><code>impl <a class='trait' href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html' title='core::fmt::Debug'>Debug</a> for <a class='struct' href='../spork/struct.Spork.html' title='spork::Spork'>Spork</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/spork/lib.rs.html#233' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class='method'><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class='struct' href='https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html' title='core::fmt::Formatter'>Formatter</a>) -&gt; <a class='type' href='https://doc.rust-lang.org/nightly/core/fmt/type.Result.html' title='core::fmt::Result'>Result</a></code></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter.</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "spork";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>
