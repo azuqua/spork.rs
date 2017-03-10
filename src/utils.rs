@@ -4,6 +4,9 @@ use chrono::UTC;
 use thread_id;
 
 use std::collections::HashMap;
+use std::cell::RefCell;
+use std::ops::{Deref, DerefMut};
+use std::borrow::{Borrow, BorrowMut};
 
 use super::*;
 
@@ -19,20 +22,20 @@ pub struct CpuTime {
 
 #[derive(Clone, Debug)]
 pub struct History {
-  process: Option<Stats>,
+  process: RefCell<Option<Stats>>,
   // maps thread_id's to the last polled stats 
-  thread: HashMap<usize, Stats>,
+  thread: RefCell<HashMap<usize, Stats>>,
   // maps thread_id's to the last polled stats
-  children: HashMap<usize, Stats>
+  children: RefCell<HashMap<usize, Stats>>
 }
 
 impl Default for History {
   
   fn default() -> Self {
     History {
-      process: None,
-      thread: HashMap::new(),
-      children: HashMap::new()
+      process: RefCell::new(None),
+      thread: RefCell::new(HashMap::new()),
+      children: RefCell::new(HashMap::new())
     }
   }
 
@@ -40,14 +43,28 @@ impl Default for History {
 
 impl History {
   
-  pub fn set_last(&mut self, kind: &StatType, poll: Stats) -> Option<Stats> {
-    /// if thread or children, get thread_id
+  pub fn set_last(&self, kind: &StatType, poll: Stats) -> Option<Stats> {
     let last = self.get_last(kind);
     
      match *kind {
-      StatType::Process => { self.process = Some(poll); },
-      StatType::Thread => { self.thread.insert(get_thread_id(), poll); },
-      StatType::Children => { self.children.insert(get_thread_id(), poll); }
+      StatType::Process => { 
+        let mut process = self.process.borrow_mut();
+        let mut process_ref = process.deref_mut();
+
+        *process_ref = Some(poll);
+      },
+      StatType::Thread => { 
+        let mut threads = self.thread.borrow_mut();
+        let mut threads_ref = threads.borrow_mut();
+
+        threads_ref.insert(get_thread_id(), poll);
+      },
+      StatType::Children => { 
+        let mut children = self.children.borrow_mut();
+        let mut children_ref = children.borrow_mut();
+
+        children_ref.insert(get_thread_id(), poll);
+      }
     };
 
     last
@@ -55,10 +72,49 @@ impl History {
 
   pub fn get_last(&self, kind: &StatType) -> Option<Stats> {
     match *kind {
-      StatType::Process => self.process.clone(),
-      StatType::Thread => self.thread.get(&get_thread_id()).cloned(),
-      StatType::Children => self.children.get(&get_thread_id()).cloned()
+      StatType::Process => self.process.clone().into_inner(),
+      StatType::Thread => {
+        let t_id = get_thread_id();
+        let threads = self.thread.borrow();
+        let threads_ref = threads.deref();
+
+        threads_ref.get(&t_id).cloned()
+      },
+      StatType::Children => {
+        let t_id = get_thread_id();
+        let children = self.children.borrow();
+        let children_ref = children.deref();
+
+        children_ref.get(&t_id).cloned()
+      }
     }
+  }
+
+  pub fn clear_last(&self, kind: &StatType) -> Option<Stats> {
+    let last = self.get_last(kind);
+
+    match *kind {
+      StatType::Process => { 
+        let mut process = self.process.borrow_mut();
+        let mut process_ref = process.deref_mut();
+
+        *process_ref = None;
+      },
+      StatType::Thread => { 
+        let mut threads = self.thread.borrow_mut();
+        let mut threads_ref = threads.borrow_mut();
+
+        threads_ref.remove(&get_thread_id());
+      },
+      StatType::Children => { 
+        let mut children = self.children.borrow_mut();
+        let mut children_ref = children.borrow_mut();
+
+        children_ref.remove(&get_thread_id());
+      }
+    };
+
+    last
   }
 
 }
@@ -90,6 +146,10 @@ pub fn get_platform() -> Result<Platform, Error> {
   }
 }
 
+pub fn scale_freq_by_cores(hz: u64, cores: usize) -> u64 {
+  hz * (cores as u64)
+}
+
 pub fn calc_cpu_percent(duration_ms: u64, hz: u64, cpu: &CpuTime) -> f64 {
   let cpu_time = (cpu.sec as f64) + (cpu.usec as f64 / 1000000_f64);
   let cpu_time_ms = cpu_time * 1000_f64;
@@ -114,11 +174,20 @@ pub fn get_num_cores() -> Result<usize, Error> {
   }
 }
 
+
 // ---------------------------
 
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn should_scale_freq_by_cores() {
+    let cores = 2_usize;
+    let freq = 1000_u64;
+    let expected = 2000_u64;
+    assert_eq!(scale_freq_by_cores(freq, cores), expected);
+  }
 
   #[test]
   fn should_get_thread_id() {
@@ -202,9 +271,9 @@ mod tests {
   #[test]
   fn should_create_empty_history() {
     let history = History::default();
-    assert_eq!(history.process, None);
-    assert!(history.thread.is_empty());
-    assert!(history.children.is_empty());
+    assert_eq!(history.process.into_inner(), None);
+    assert!(history.thread.into_inner().is_empty());
+    assert!(history.children.into_inner().is_empty());
   }
 
   #[test]
@@ -303,6 +372,54 @@ mod tests {
 
     let duration = calc_duration(&kind, &history, started, polled);
     assert_eq!(duration, (polled - stats.polled) as u64);
+  }
+
+  #[test]
+  fn should_clear_process_history() {
+    let mut history = History::default();
+    let kind = StatType::Process;
+    let stats = Stats::new_empty(kind.clone());
+    
+    let last = history.set_last(&kind, stats.clone());
+    assert_eq!(last, None);
+
+    let cleared = history.clear_last(&kind);
+    assert_eq!(cleared, Some(stats));
+
+    let empty = history.get_last(&kind);
+    assert_eq!(empty, None);
+  }
+
+  #[test]
+  fn should_clear_thread_history() {
+    let mut history = History::default();
+    let kind = StatType::Thread;
+    let stats = Stats::new_empty(kind.clone());
+    
+    let last = history.set_last(&kind, stats.clone());
+    assert_eq!(last, None);
+
+    let cleared = history.clear_last(&kind);
+    assert_eq!(cleared, Some(stats));
+
+    let empty = history.get_last(&kind);
+    assert_eq!(empty, None);
+  }
+
+  #[test]
+  fn should_clear_children_history() {
+    let mut history = History::default();
+    let kind = StatType::Children;
+    let stats = Stats::new_empty(kind.clone());
+    
+    let last = history.set_last(&kind, stats.clone());
+    assert_eq!(last, None);
+
+    let cleared = history.clear_last(&kind);
+    assert_eq!(cleared, Some(stats));
+
+    let empty = history.get_last(&kind);
+    assert_eq!(empty, None);
   }
 
   #[test]

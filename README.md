@@ -1,7 +1,7 @@
 Spork
 =====
 
-CPU and memory usage inspection for threads and processes.
+CPU and memory usage for threads and processes.
 
 [![Build Status](https://travis-ci.org/azuqua/spork.rs.svg?branch=master)](https://travis-ci.org/azuqua/spork.rs)
 [![Coverage Status](https://coveralls.io/repos/github/azuqua/spork.rs/badge.svg)](https://coveralls.io/github/azuqua/spork.rs)
@@ -17,11 +17,15 @@ With [Cargo Edit](https://github.com/killercup/cargo-edit):
 cargo add spork
 ```
 
-Or by hand, add to your `Cargo.toml`
+Or add to your `Cargo.toml`
 
 ```
 spork = "0.1"
 ```
+
+# Status
+
+Currently POSIX compliant platforms are developed and tested, but Windows support remains a WIP.
 
 # Usage
 
@@ -60,7 +64,22 @@ let t_stats = match spork.stats(StatType::Thread) {
 
 println!("Thread CPU: {}%, Memory: {} bytes, Cores: {}, Type: {}, Polled at: {}", 
   t_stats.cpu, t_stats.memory, t_stats.cores, t_stats.kind, t_stats.polled);
+
+// get process stats across all CPU cores
+let p_stats = spork.stats_with_cpus(StatType::Process, None).unwrap();
+
+// get process stats across only 2 cores
+let p_stats = spork.stats_with_cpus(StatType::Process, Some(2)).unwrap();
+
+// get stats for child threads of the calling thread across all CPU cores
+let c_stats = spork.stats_with_cpus(StatType::Children, None).unwrap();
 ```
+
+# Unsupported Platforms
+
+This module supports POSIX compliant platforms (Linux, OS X, etc) and Windows (soon). If you'd like to use this on an unsupported platform, or one on which you might expect compatibility issues, there are two options available for testing and usage. If you'd prefer to catch any compatibility issues at compile-time just download this library and try to build it. If it builds it should<sup>[TM](https://i.imgur.com/DK5FdPs.jpg)</sup> work, but it's still a good idea to run the test suite before trying it in production. 
+
+If you'd prefer to handle compatibility errors at runtime add the `compile_unimplemented` feature to your Cargo.toml for Spork. Instead of introducing compiler errors this will compile mock functions which always return `Unimplemented` errors in place of any missing platform-specific ones.
 
 # Tests
 

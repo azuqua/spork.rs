@@ -1,8 +1,15 @@
 
 use libc;
-use libc::RUSAGE_SELF;
-use libc::RUSAGE_CHILDREN;
-use libc::RUSAGE_THREAD;
+use libc::{
+  RUSAGE_SELF,
+  RUSAGE_CHILDREN,
+  RUSAGE_THREAD,
+  CLOCK_THREAD_CPUTIME_ID,
+  EFAULT,
+  EINVAL,
+  EPERM
+};
+use libc::timespec;
 use libc::timeval;
 use libc::rusage;
 
@@ -41,25 +48,72 @@ fn empty_rusage() -> rusage {
   }
 }
 
+fn empty_timespec() -> timespec {
+  timespec {
+    tv_sec: 0,
+    tv_nsec: 0
+  }
+}
+
+fn map_posix_resp(code: i32) -> Result<i32, Error> {
+  match code {
+    EFAULT => Err(Error::new_borrowed(ErrorKind::Unknown, "Invalid timespec address space.")),
+    EINVAL => Err(Error::new_borrowed(ErrorKind::Unknown, "Invalid clock ID.")),
+    EPERM => Err(Error::new_borrowed(ErrorKind::Unknown, "Invalid clock permissions.")),
+    _ => Ok(code)
+  }
+}
+
+// jiffies
 pub fn get_clock_ticks() -> Result<i64, Error> {
   Ok(unsafe { libc::sysconf(libc::_SC_CLK_TCK) })
 }
 
-pub fn get_stats(kind: &StatType) -> rusage {
-  let code = match *kind {
-    StatType::Process => RUSAGE_SELF,
-    StatType::Thread => RUSAGE_THREAD,
-    StatType::Children => RUSAGE_CHILDREN
+pub fn timespec_to_cpu_time(times: &timespec) -> CpuTime {
+  CpuTime {
+    sec: times.tv_sec.wrapping_abs() as u64,
+    usec: (times.tv_nsec.wrapping_abs() / 1000) as u64
+  }
+}
+
+pub fn timespec_to_timeval(times: &timespec) -> timeval {
+  timeval {
+    tv_sec: times.tv_sec,
+    tv_usec: times.tv_nsec / 1000
+  }
+}
+
+// this should always be called before get_stats since they both consume the clock
+pub fn get_thread_cpu_time() -> Result<timespec, Error> {
+  let mut times = empty_timespec();
+  let _ = try!(map_posix_resp(unsafe {
+    libc::clock_gettime(CLOCK_THREAD_CPUTIME_ID, &mut times)
+  }));
+
+  Ok(times)
+}
+
+pub fn get_stats(kind: &StatType) -> Result<rusage, Error> {
+  let (t_times, code): (Option<timespec>, i32) = match *kind {
+    StatType::Process => (None, RUSAGE_SELF),
+    StatType::Children => (None, RUSAGE_CHILDREN),
+    StatType::Thread => (Some(try!(get_thread_cpu_time())), RUSAGE_THREAD)
   };
 
   let mut usage = empty_rusage();
-  unsafe {
-    libc::getrusage(code, &mut usage);
+  let _ = try!(map_posix_resp(unsafe {
+    libc::getrusage(code, &mut usage)
+  }));
+
+  if t_times.is_some() {
+    // use clock_gettime results for threads
+    usage.ru_utime = timespec_to_timeval(&t_times.unwrap());
   }
-  usage
+
+  Ok(usage)
 }
 
-pub fn get_cpu_percent(kind: &StatType, hz: u64, duration: u64, val: &rusage) -> f64 {
+pub fn get_cpu_percent(hz: u64, duration: u64, val: &rusage) -> f64 {
   let times = CpuTime {
     sec: (val.ru_stime.tv_sec + val.ru_utime.tv_sec).wrapping_abs() as u64,
     usec: (val.ru_stime.tv_usec + val.ru_utime.tv_usec).wrapping_abs() as u64
@@ -107,6 +161,24 @@ mod tests {
   }
 
   #[test]
+  fn should_get_empty_timespec() {
+    let times = empty_timespec();
+    assert_eq!(times.tv_sec, 0);
+    assert_eq!(times.tv_nsec, 0);
+  }
+
+  #[test]
+  fn should_convert_timespec_to_cpu_time() {
+    let mut times = empty_timespec();
+    times.tv_sec = 1;
+    times.tv_nsec = 10000;
+
+    let cpu = timespec_to_cpu_time(&times);
+    assert_eq!(times.tv_sec as u64, cpu.sec);
+    assert_eq!(times.tv_nsec as u64, cpu.usec * 1000);
+  }
+
+  #[test]
   fn should_get_empty_rusage() {
     let usage = empty_rusage();
     assert_eq!(usage.ru_maxrss, 0);
@@ -122,7 +194,7 @@ mod tests {
   fn should_poll_process_stats() {
     let kind = StatType::Process;
     let usage = get_stats(&kind);
-    print_rusage(&usage);
+    print_rusage(&usage.unwrap());
   }
 
   #[test]
@@ -130,29 +202,46 @@ mod tests {
     let kind = StatType::Thread;
     fib(10);
     let usage = get_stats(&kind);
-    print_rusage(&usage);
+    print_rusage(&usage.unwrap());
   }
 
   #[test]
   fn should_poll_children_stats() {
     let kind = StatType::Children;
     let usage = get_stats(&kind);
-    print_rusage(&usage);
+    print_rusage(&usage.unwrap());
   }
 
   #[test]
-  fn should_poll_cpu_fb_42() {
+  fn should_poll_cpu_fib_42() {
     let kind = StatType::Thread;
     let hz = utils::get_cpu_speed().unwrap();
-    let last_rusage = get_stats(&kind);
+    let last_rusage = match get_stats(&kind) {
+      Ok(u) => u,
+      Err(e) => panic!("Error getting stats {:?}", e)
+    };
     let started = utils::now_ms();
     fib(42);
     let finished = utils::now_ms();
-    let rusage = get_stats(&kind);
+    let rusage = match get_stats(&kind) {
+      Ok(u) => u,
+      Err(e) => panic!("Error getting stats {:?}", e)
+    };
     let duration = utils::safe_unsigned_sub(finished, started); 
-    let cpu = get_cpu_percent(&kind, hz, duration, &rusage);
+    let cpu = get_cpu_percent(hz, duration, &rusage);
   
     assert!(cpu > 90.0);
+  }
+
+  #[test]
+  fn should_get_thread_cpu_times() {
+    let times = match get_thread_cpu_time() {
+      Ok(t) => t,
+      Err(e) => panic!("Error getting thread cpu times {:?}", e)
+    };
+
+    assert!(times.tv_sec >= 0);
+    assert!(times.tv_nsec >= 0);
   }
 
 }
