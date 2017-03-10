@@ -4,6 +4,9 @@ use chrono::UTC;
 use thread_id;
 
 use std::collections::HashMap;
+use std::cell::RefCell;
+use std::ops::{Deref, DerefMut};
+use std::borrow::{Borrow, BorrowMut};
 
 use super::*;
 
@@ -19,20 +22,20 @@ pub struct CpuTime {
 
 #[derive(Clone, Debug)]
 pub struct History {
-  process: Option<Stats>,
+  process: RefCell<Option<Stats>>,
   // maps thread_id's to the last polled stats 
-  thread: HashMap<usize, Stats>,
+  thread: RefCell<HashMap<usize, Stats>>,
   // maps thread_id's to the last polled stats
-  children: HashMap<usize, Stats>
+  children: RefCell<HashMap<usize, Stats>>
 }
 
 impl Default for History {
   
   fn default() -> Self {
     History {
-      process: None,
-      thread: HashMap::new(),
-      children: HashMap::new()
+      process: RefCell::new(None),
+      thread: RefCell::new(HashMap::new()),
+      children: RefCell::new(HashMap::new())
     }
   }
 
@@ -40,13 +43,28 @@ impl Default for History {
 
 impl History {
   
-  pub fn set_last(&mut self, kind: &StatType, poll: Stats) -> Option<Stats> {
+  pub fn set_last(&self, kind: &StatType, poll: Stats) -> Option<Stats> {
     let last = self.get_last(kind);
     
      match *kind {
-      StatType::Process => { self.process = Some(poll); },
-      StatType::Thread => { self.thread.insert(get_thread_id(), poll); },
-      StatType::Children => { self.children.insert(get_thread_id(), poll); }
+      StatType::Process => { 
+        let mut process = self.process.borrow_mut();
+        let mut process_ref = process.deref_mut();
+
+        *process_ref = Some(poll);
+      },
+      StatType::Thread => { 
+        let mut threads = self.thread.borrow_mut();
+        let mut threads_ref = threads.borrow_mut();
+
+        threads_ref.insert(get_thread_id(), poll);
+      },
+      StatType::Children => { 
+        let mut children = self.children.borrow_mut();
+        let mut children_ref = children.borrow_mut();
+
+        children_ref.insert(get_thread_id(), poll);
+      }
     };
 
     last
@@ -54,19 +72,46 @@ impl History {
 
   pub fn get_last(&self, kind: &StatType) -> Option<Stats> {
     match *kind {
-      StatType::Process => self.process.clone(),
-      StatType::Thread => self.thread.get(&get_thread_id()).cloned(),
-      StatType::Children => self.children.get(&get_thread_id()).cloned()
+      StatType::Process => self.process.clone().into_inner(),
+      StatType::Thread => {
+        let t_id = get_thread_id();
+        let threads = self.thread.borrow();
+        let threads_ref = threads.deref();
+
+        threads_ref.get(&t_id).cloned()
+      },
+      StatType::Children => {
+        let t_id = get_thread_id();
+        let children = self.children.borrow();
+        let children_ref = children.deref();
+
+        children_ref.get(&t_id).cloned()
+      }
     }
   }
 
-  pub fn clear_last(&mut self, kind: &StatType) -> Option<Stats> {
+  pub fn clear_last(&self, kind: &StatType) -> Option<Stats> {
     let last = self.get_last(kind);
 
     match *kind {
-      StatType::Process => { self.process = None; },
-      StatType::Children => { self.children.remove(&get_thread_id()); },
-      StatType::Thread => { self.thread.remove(&get_thread_id()); }
+      StatType::Process => { 
+        let mut process = self.process.borrow_mut();
+        let mut process_ref = process.deref_mut();
+
+        *process_ref = None;
+      },
+      StatType::Thread => { 
+        let mut threads = self.thread.borrow_mut();
+        let mut threads_ref = threads.borrow_mut();
+
+        threads_ref.remove(&get_thread_id());
+      },
+      StatType::Children => { 
+        let mut children = self.children.borrow_mut();
+        let mut children_ref = children.borrow_mut();
+
+        children_ref.remove(&get_thread_id());
+      }
     };
 
     last
@@ -128,7 +173,6 @@ pub fn get_num_cores() -> Result<usize, Error> {
     Err(e) => Err(Error::from(e))
   }
 }
-
 
 
 // ---------------------------
@@ -227,9 +271,9 @@ mod tests {
   #[test]
   fn should_create_empty_history() {
     let history = History::default();
-    assert_eq!(history.process, None);
-    assert!(history.thread.is_empty());
-    assert!(history.children.is_empty());
+    assert_eq!(history.process.into_inner(), None);
+    assert!(history.thread.into_inner().is_empty());
+    assert!(history.children.into_inner().is_empty());
   }
 
   #[test]
