@@ -4,7 +4,7 @@ use std;
 use winapi;
 use winapi::*;
 use kernel32;
-use psapi::PROCESS_MEMORY_COUNTERS;
+use winapi::psapi::PROCESS_MEMORY_COUNTERS;
 
 use super::*;
 
@@ -40,37 +40,37 @@ fn empty_proc_mem_counters() -> PROCESS_MEMORY_COUNTERS {
 }
 
 // convert the two 32 bit ints in a FILETIME a u64
-fn wtf(f: winapn::minwindef::FILETIME) -> u64 {
-  f.dwLowDateTime + 2.pow(32) * f.dwHighDateTime
+fn wtf(f: winapi::minwindef::FILETIME) -> u64 {
+  f.dwLowDateTime as u64 + (2 << 31) as u64 * f.dwHighDateTime as u64
 }
 
-pub fn get_mem_stats(kind: &StatType) -> Result<PROCESS_MEMORY_COUNTER, Error> {
+pub fn get_mem_stats(kind: &StatType) -> Result<PROCESS_MEMORY_COUNTERS, Error> {
 
   match *kind {
     StatType::Process => {
       let mut handle = get_current_process();
-      let mut memory = empty_proc_mem_counter(); 
-      let mut cb = std::mem::size_of::<PROCESS_MEMORY_COUNTER>() as u32;
+      let mut memory = empty_proc_mem_counters(); 
+      let mut cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
 
       unsafe {
-        kernel32::K32GetProcessMemoryInfo(&mut handle, &mut memory, &mut cb);
+        kernel32::K32GetProcessMemoryInfo(handle, &mut memory, cb);
       };
 
       Ok(memory)
     },
     StatType::Thread => {
       let mut handle = get_thread_handle();
-      let mut memory = empty_proc_mem_counter(); 
-      let mut cb = std::mem::size_of::<PROCESS_MEMORY_COUNTER>() as u32;
+      let mut memory = empty_proc_mem_counters(); 
+      let mut cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
 
       unsafe {
-        kernel32::K32GetProcessMemoryInfo(&mut handle, &mut memory, &mut cb);
+        kernel32::K32GetProcessMemoryInfo(handle, &mut memory, cb);
       };
 
       Ok(memory) 
     },
     StatType::Children => {
-      Err(PidError::new(PidErrorKind::Unimplemented, "Windows child thread memory stat not yet implemented!".to_owned()))
+      Err(Error::new(ErrorKind::Unimplemented, "Windows child thread memory stat not yet implemented!".to_owned()))
     }
   }
 }
@@ -93,7 +93,7 @@ pub fn get_cpu_times(kind: &StatType) -> Result<WindowsCpuStats, Error> {
       let mut lpUserTime = empty_filetime(); 
 
       unsafe {
-        kernel32::GetProcessTimes(&mut handle, &mut lpCreationTime, 
+        kernel32::GetProcessTimes(handle, &mut lpCreationTime, 
           &mut lpExitTime, &mut lpKernelTime, &mut lpUserTime);
       };
 
@@ -112,7 +112,7 @@ pub fn get_cpu_times(kind: &StatType) -> Result<WindowsCpuStats, Error> {
       let mut lpUserTime = empty_filetime();
 
       unsafe {
-        kernel32::GetThreadTimes(&mut handle, &mut lpCreationTime, 
+        kernel32::GetThreadTimes(handle, &mut lpCreationTime, 
           &mut lpExitTime, &mut lpKernelTime, &mut lpUserTime);
       };
 
@@ -125,7 +125,7 @@ pub fn get_cpu_times(kind: &StatType) -> Result<WindowsCpuStats, Error> {
     },
     StatType::Children => {
       // TODO
-      Err(PidError::new(PidErrorKind::Unimplemented, "Windows child thread CPU time stat is not yet implemented!".to_owned()))
+      Err(Error::new(ErrorKind::Unimplemented, "Windows child thread CPU time stat is not yet implemented!".to_owned()))
     }
   }
 
