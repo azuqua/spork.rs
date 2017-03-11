@@ -41,7 +41,7 @@ fn empty_proc_mem_counters() -> PROCESS_MEMORY_COUNTERS {
 
 // convert the two 32 bit ints in a FILETIME a u64
 fn wtf(f: winapi::minwindef::FILETIME) -> u64 {
-  f.dwLowDateTime as u64 + (2 << 31) as u64 * f.dwHighDateTime as u64
+  (f.dwLowDateTime + (2 << 31) * f.dwHighDateTime) as u64
 }
 
 pub fn get_mem_stats(kind: &StatType) -> Result<PROCESS_MEMORY_COUNTERS, Error> {
