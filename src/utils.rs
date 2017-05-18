@@ -197,7 +197,7 @@ mod tests {
   }
 
   #[test]
-  #[cfg(unix)]
+  #[cfg(target_os="linux")]
   fn should_get_linux_platform() {
     assert_eq!(get_platform(), Ok(Platform::Linux));
   }
