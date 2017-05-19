@@ -35,7 +35,7 @@ fn should_poll_no_cpu() {
     Err(e) => panic!("Error creating spork! {:?}", e)
   };
 
-  sleep_ms!(1000);
+  sleep_ms!(5000);
   let stats = match spork.stats(StatType::Thread) {
     Ok(s) => s,
     Err(e) => panic!("Error polling stats! {:?}", e)

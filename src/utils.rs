@@ -3,6 +3,8 @@ use sys_info;
 use chrono::UTC;
 use thread_id;
 
+use libc::timespec;
+
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
@@ -174,6 +176,15 @@ pub fn get_num_cores() -> Result<usize, Error> {
   }
 }
 
+// Not actually dead - but cargo thinks it is (Used in tests)
+#[allow(dead_code)]
+pub fn empty_timespec() -> timespec {
+  timespec {
+    tv_sec: 0,
+    tv_nsec: 0
+  }
+}
+
 
 // ---------------------------
 
@@ -197,7 +208,7 @@ mod tests {
   }
 
   #[test]
-  #[cfg(unix)]
+  #[cfg(target_os="linux")]
   fn should_get_linux_platform() {
     assert_eq!(get_platform(), Ok(Platform::Linux));
   }
