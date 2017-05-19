@@ -3,6 +3,8 @@ use sys_info;
 use chrono::UTC;
 use thread_id;
 
+use libc::timespec;
+
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
@@ -171,6 +173,15 @@ pub fn get_num_cores() -> Result<usize, Error> {
   match sys_info::cpu_num() {
     Ok(n) => Ok(n as usize),
     Err(e) => Err(Error::from(e))
+  }
+}
+
+// Not actually dead - but cargo thinks it is (Used in tests)
+#[allow(dead_code)]
+pub fn empty_timespec() -> timespec {
+  timespec {
+    tv_sec: 0,
+    tv_nsec: 0
   }
 }
 

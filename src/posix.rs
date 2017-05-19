@@ -17,6 +17,7 @@ use super::*;
 
 use utils;
 use utils::CpuTime;
+use utils::empty_timespec;
 
 fn empty_rusage() -> rusage {
   libc::rusage {
@@ -42,13 +43,6 @@ fn empty_rusage() -> rusage {
     ru_nsignals: 0,
     ru_nvcsw: 0,
     ru_nivcsw: 0 
-  }
-}
-
-fn empty_timespec() -> timespec {
-  timespec {
-    tv_sec: 0,
-    tv_nsec: 0
   }
 }
 
@@ -126,6 +120,7 @@ pub fn get_cpu_percent(hz: u64, duration: u64, val: &rusage) -> f64 {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use utils::empty_timespec;
 
   fn format_timeval(val: &timeval) -> String {
     format!(

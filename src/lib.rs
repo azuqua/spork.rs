@@ -337,7 +337,7 @@ impl Spork {
   /// println!("CPU: {}%, Memory: {} bytes, Cores: {}, Type: {}, Polled at: {}", 
   ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
   /// ```
-  #[cfg(targetos = "linux")]
+  #[cfg(target_os = "linux")]
   pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, Error> {
     let cores = match cores {
       Some(c) => c,
@@ -735,8 +735,8 @@ mod tests {
   #[test]
   #[cfg(unix)]
   fn should_get_low_cpu_linux_thread_stats() {
-    let wait = rand_in_range(2000, 4000);
-    let expected_cpu = 1_f64;
+    let wait = rand_in_range(4000, 6000);
+    let expected_cpu = 1.5_f64;
 
     let before = utils::now_ms() as u64;
     let spork = Spork::new().unwrap();
