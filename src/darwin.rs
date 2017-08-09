@@ -1,10 +1,33 @@
+use mach::task_info::{
+  TASK_EVENTS_INFO,
+  TASK_EVENTS_INFO_COUNT,
+  TASK_THREAD_TIMES_INFO,
+  TASK_THREAD_TIMES_INFO_COUNT,
+  TASK_BASIC_INFO_COUNT,
+  TASK_BASIC_INFO,
+  task_basic_info, 
+  task_basic_info_t,
+  task_events_info, 
+  task_events_info_t, 
+  task_thread_times_info,
+  task_thread_times_info_t,
+  MIG_ARRAY_TOO_LARGE
+};
+use mach::task::task_info;
+use mach::kern_return::{
+  KERN_SUCCESS,
+  KERN_INVALID_ARGUMENT
+};
+use mach::traps::{mach_task_self};
+use mach::time_value::{
+  time_value_t,
+  time_value_add
+};
 
 use libc;
 use libc::{
   RUSAGE_SELF,
   RUSAGE_CHILDREN,
-  RUSAGE_THREAD,
-  CLOCK_THREAD_CPUTIME_ID,
   EFAULT,
   EINVAL,
   EPERM
@@ -17,7 +40,6 @@ use super::*;
 
 use utils;
 use utils::CpuTime;
-use utils::empty_timespec;
 
 fn empty_rusage() -> rusage {
   libc::rusage {
@@ -55,48 +77,100 @@ fn map_posix_resp(code: i32) -> Result<i32, Error> {
   }
 }
 
-// jiffies
-#[allow(dead_code)]
-pub fn get_clock_ticks() -> Result<i64, Error> {
-  Ok(unsafe { libc::sysconf(libc::_SC_CLK_TCK) })
+fn map_mach_resp(code: libc::c_int) -> Result<i32, Error> {
+  match code {
+    KERN_SUCCESS => Ok(code),
+    KERN_INVALID_ARGUMENT => Err(Error::new_borrowed(ErrorKind::Unknown, "Target task is not a thread or flavor not recognized")),
+    MIG_ARRAY_TOO_LARGE => Err(Error::new_borrowed(ErrorKind::Unknown, "Target array too small")),
+    _ => Err(Error::new_borrowed(ErrorKind::Unknown, "Unknown error had occured"))
+  }
 }
 
 #[allow(dead_code)]
-pub fn timespec_to_cpu_time(times: &timespec) -> CpuTime {
-  CpuTime {
-    sec: times.tv_sec.wrapping_abs() as u64,
-    usec: (times.tv_nsec.wrapping_abs() / 1000) as u64
+pub fn merge_thread_times_to_timespec(thread_times: &task_thread_times_info) -> timespec {
+  let mut time_total = time_value_t { seconds: 0, microseconds: 0 };
+  time_value_add(&mut time_total, &(thread_times.user_time));
+  time_value_add(&mut time_total, &(thread_times.system_time));
+  time_value_t_to_timespec(&time_total)
+}
+
+pub fn time_value_t_to_timespec(times: &time_value_t) -> timespec {
+  timespec {
+    tv_sec: times.seconds as i64,
+    tv_nsec: (times.microseconds * 1000) as i64
+  }
+}
+
+pub fn  time_value_t_to_timeval(times: &time_value_t) -> timeval {
+  timeval {
+    tv_sec: times.seconds as i64,
+    tv_usec: times.microseconds 
   }
 }
 
 pub fn timespec_to_timeval(times: &timespec) -> timeval {
   timeval {
     tv_sec: times.tv_sec,
-    tv_usec: times.tv_nsec / 1000
+    tv_usec: (times.tv_nsec / 1000) as i32
   }
+}
+
+pub fn get_rusage_from_mach(usage: &mut rusage) -> Result<i32, Error> {
+  let mut basic_info = task_basic_info::new();
+  let basic_info_ptr = (&mut basic_info as task_basic_info_t) as libc::uintptr_t;
+  let mut count = TASK_BASIC_INFO_COUNT;
+  try!(map_mach_resp(unsafe {
+    task_info(mach_task_self(), TASK_BASIC_INFO, basic_info_ptr, &mut count)
+  }));
+
+  let mut event_info = task_events_info::new();
+  let event_info_ptr = (&mut event_info as task_events_info_t) as libc::uintptr_t;
+  let mut task_event_count = TASK_EVENTS_INFO_COUNT;
+  try!(map_mach_resp(unsafe {
+    task_info(mach_task_self(), TASK_EVENTS_INFO, event_info_ptr, &mut task_event_count)
+  }));
+
+  usage.ru_maxrss = basic_info.resident_size as i64 / 1024;
+  usage.ru_stime = time_value_t_to_timeval(&basic_info.system_time);
+
+  // TODO: Explore needing to remove this
+  usage.ru_majflt = event_info.faults as i64;
+  usage.ru_nivcsw = event_info.csw as i64;
+
+  Ok(KERN_SUCCESS)
 }
 
 // this should always be called before get_stats since they both consume the clock
 pub fn get_thread_cpu_time() -> Result<timespec, Error> {
-  let mut times = empty_timespec();
-  let _ = try!(map_posix_resp(unsafe {
-    libc::clock_gettime(CLOCK_THREAD_CPUTIME_ID, &mut times)
+  let mut thread_times = task_thread_times_info::new();
+  let thread_times_ptr = (&mut thread_times as task_thread_times_info_t) as libc::uintptr_t;
+  let mut thread_times_count = TASK_THREAD_TIMES_INFO_COUNT;
+  let _ = try!(map_mach_resp(unsafe {
+    task_info(mach_task_self(), TASK_THREAD_TIMES_INFO, thread_times_ptr, &mut thread_times_count)
   }));
 
-  Ok(times)
+  // Appears the Linux equivilent to this actually is a compination of CPU and USER times
+  // Ok(time_value_t_to_timespec(&(thread_times.user_time)))
+  // For now lets combine (Which is what clock_gettime appears to do)
+  Ok(merge_thread_times_to_timespec(&thread_times))
 }
 
 pub fn get_stats(kind: &StatType) -> Result<rusage, Error> {
-  let (t_times, code): (Option<timespec>, i32) = match *kind {
-    StatType::Process => (None, RUSAGE_SELF),
-    StatType::Children => (None, RUSAGE_CHILDREN),
-    StatType::Thread => (Some(try!(get_thread_cpu_time())), RUSAGE_THREAD)
+  let (t_times, code): (Option<timespec>, Option<i32>) = match *kind {
+    StatType::Process => (None, Some(RUSAGE_SELF)),
+    StatType::Children => (None, Some(RUSAGE_CHILDREN)),
+    StatType::Thread => (Some(try!(get_thread_cpu_time())), None)
   };
 
+
   let mut usage = empty_rusage();
-  let _ = try!(map_posix_resp(unsafe {
-    libc::getrusage(code, &mut usage)
-  }));
+  if let Some(r_code) = code {
+    let _ = try!(map_posix_resp(unsafe {
+      libc::getrusage(r_code, &mut usage)
+    }));
+  } else {
+    let _ = try!(get_rusage_from_mach(&mut usage));
+  }
 
   if t_times.is_some() {
     // use clock_gettime results for threads
@@ -121,6 +195,17 @@ pub fn get_cpu_percent(hz: u64, duration: u64, val: &rusage) -> f64 {
 mod tests {
   use super::*;
   use utils::empty_timespec;
+
+  fn get_clock_ticks() -> Result<i64, Error> {
+    Ok(unsafe { libc::sysconf(libc::_SC_CLK_TCK) })
+  }
+
+  fn timespec_to_cpu_time(times: &timespec) -> CpuTime {
+    CpuTime {
+      sec: times.tv_sec.wrapping_abs() as u64,
+      usec: (times.tv_nsec.wrapping_abs() / 1000) as u64
+    }
+  }
 
   fn format_timeval(val: &timeval) -> String {
     format!(

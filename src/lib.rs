@@ -40,6 +40,8 @@
 //! println!("Thread stats: {:?}", t_stats);
 //! ```
 
+#[cfg(target_os="macos")]
+extern crate mach;
 
 extern crate chrono;
 extern crate sys_info;
@@ -58,8 +60,11 @@ use std::io::Error as IoError;
 #[cfg(windows)]
 mod windows;
 
-#[cfg(any(unix, target_os="macos"))]
+#[cfg(target_os="linux")]
 mod posix;
+
+#[cfg(target_os="macos")]
+mod darwin;
 
  
 /// An error type describing the possible error cases for this module. If compiled with the feature `compile_unimplemented`
@@ -138,9 +143,9 @@ impl Error {
   /// Read the error's details.
   pub fn inner(&self) -> &str {
     match *self {
-      Error::InvalidStatType { desc: _, details: ref details } => details,
-      Error::Unimplemented { desc: _, details: ref details } => details,
-      Error::Unknown { desc: _, details: ref details } => details
+      Error::InvalidStatType { desc: _, ref details } => details,
+      Error::Unimplemented { desc: _, ref details } => details,
+      Error::Unknown { desc: _, ref details } => details
     }
   }
 
@@ -262,13 +267,44 @@ impl Spork {
   /// println!("CPU: {}%, Memory: {} bytes, Cores: {}, Type: {}, Polled at: {}", 
   ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
   /// ```
-  #[cfg(any(unix, target_os="macos"))]
+  #[cfg(target_os="linux")]
   pub fn stats(&self, kind: StatType) -> Result<Stats, Error> {
     let now = utils::now_ms();
     let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
     let usage = try!(posix::get_stats(&kind));
     let cpu = posix::get_cpu_percent(self.clock, duration, &usage);
+
+    let stats = Stats {
+      kind: kind.clone(),
+      polled: now,
+      duration: duration,
+      cpu: cpu,
+      memory: (usage.ru_maxrss as u64) * 1000,
+      uptime: utils::safe_unsigned_sub(now, self.started),
+      cores: 1
+    };
+
+    self.history.set_last(&kind, stats.clone());
+    Ok(stats)
+  }
+
+  /// Get CPU and memory statistics in a `Stats` instance for the provided `StatType` assuming usage across only 1 CPU core.
+  /// 
+  /// ```
+  /// let spork = Spork::new().unwrap();
+  /// let stats = spork.stats(StatType::Thread).unwrap();
+  ///
+  /// println!("CPU: {}%, Memory: {} bytes, Cores: {}, Type: {}, Polled at: {}", 
+  ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
+  /// ```
+  #[cfg(target_os="macos")]
+  pub fn stats(&self, kind: StatType) -> Result<Stats, Error> {
+    let now = utils::now_ms();
+    let duration = utils::calc_duration(&kind, &self.history, self.started, now);
+
+    let usage = try!(darwin::get_stats(&kind));
+    let cpu = darwin::get_cpu_percent(self.clock, duration, &usage);
 
     let stats = Stats {
       kind: kind.clone(),
@@ -301,7 +337,7 @@ impl Spork {
   /// println!("CPU: {}%, Memory: {} bytes, Cores: {}, Type: {}, Polled at: {}", 
   ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
   /// ```
-  #[cfg(any(unix, target_os="macos"))]
+  #[cfg(target_os = "linux")]
   pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, Error> {
     let cores = match cores {
       Some(c) => c,
@@ -318,6 +354,55 @@ impl Spork {
 
     let usage = try!(posix::get_stats(&kind));
     let cpu = posix::get_cpu_percent(freq, duration, &usage);
+
+    let stats = Stats {
+      kind: kind.clone(),
+      polled: now,
+      duration: duration,
+      cpu: cpu,
+      memory: (usage.ru_maxrss as u64) * 1000,
+      uptime: utils::safe_unsigned_sub(now, self.started),
+      cores: cores
+    };
+
+    self.history.set_last(&kind, stats.clone());
+    Ok(stats)
+  }
+
+  /// Get CPU and memory statistics in a `Stats` instance for the provided `StatType` assuming usage across `count` CPU core(s).
+  /// If `None` is provided then all available CPU cores will be considered, where applicable.
+  ///
+  /// ```
+  /// let spork = Spork::new().unwrap();
+  /// // read stats across all available CPU cores
+  /// let stats = spork.stats_with_cpus(StatType::Thread, None).unwrap();
+  ///
+  /// println!("CPU: {}%, Memory: {} bytes, Cores: {}, Type: {}, Polled at: {}", 
+  ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
+  ///
+  /// // read stats considering only 2 CPU cores
+  /// let stats = spork.stats_with_cpus(StatType::Thread, Some(2));
+  ///
+  /// println!("CPU: {}%, Memory: {} bytes, Cores: {}, Type: {}, Polled at: {}", 
+  ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
+  /// ```
+  #[cfg(target_os="macos")]
+  pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, Error> {
+    let cores = match cores {
+      Some(c) => c,
+      None => self.cpus
+    };
+
+    if cores > self.cpus {
+      return Err(Error::new_borrowed(ErrorKind::Unknown, "Invalid CPU count."));
+    }
+
+    let freq = utils::scale_freq_by_cores(self.clock, cores);
+    let now = utils::now_ms();
+    let duration = utils::calc_duration(&kind, &self.history, self.started, now);
+
+    let usage = try!(darwin::get_stats(&kind));
+    let cpu = darwin::get_cpu_percent(freq, duration, &usage);
 
     let stats = Stats {
       kind: kind.clone(),
@@ -540,7 +625,7 @@ mod tests {
   }
 
   #[test]
-  #[cfg(unix)]
+  #[cfg(target_os="linux")]
   fn should_get_linux_platform() {
     let spork = Spork::new().unwrap();
     assert_eq!(spork.platform(), Platform::Linux);
@@ -637,6 +722,35 @@ mod tests {
 
     println!("{:?}", stats);
     assert!(stats.cpu > expected_cpu);
+    assert!(stats.memory > 0);
+    assert!(stats.duration >= wait);
+    assert!(stats.duration <= _final - before);
+    assert_eq!(stats.cores, 1);
+    assert_eq!(stats.kind, StatType::Thread);
+    assert!(stats.uptime >= wait);
+    assert!(stats.uptime <= _final - before);
+    assert!(stats.polled <= _final as i64);
+  }
+
+  #[test]
+  #[cfg(unix)]
+  fn should_get_low_cpu_linux_thread_stats() {
+    let wait = rand_in_range(4000, 6000);
+    let expected_cpu = 1.5_f64;
+
+    let before = utils::now_ms() as u64;
+    let spork = Spork::new().unwrap();
+
+    sleep_ms!(wait);
+
+    let stats = match spork.stats(StatType::Thread) {
+      Ok(s) => s,
+      Err(e) => panic!("Stats error {:?}", e)
+    };
+    let _final = utils::now_ms() as u64;
+
+    println!("{:?}", stats);
+    assert!(stats.cpu < expected_cpu);
     assert!(stats.memory > 0);
     assert!(stats.duration >= wait);
     assert!(stats.duration <= _final - before);
