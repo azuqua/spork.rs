@@ -3,8 +3,8 @@ extern crate spork;
 
 #[allow(unused_imports)]
 use spork::{
-  Error,
-  ErrorKind,
+  SporkError,
+  SporkErrorKind,
   Spork,
   StatType,
   Stats,

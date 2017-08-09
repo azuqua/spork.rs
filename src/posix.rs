@@ -46,18 +46,18 @@ fn empty_rusage() -> rusage {
   }
 }
 
-fn map_posix_resp(code: i32) -> Result<i32, Error> {
+fn map_posix_resp(code: i32) -> Result<i32, SporkError> {
   match code {
-    EFAULT => Err(Error::new_borrowed(ErrorKind::Unknown, "Invalid timespec address space.")),
-    EINVAL => Err(Error::new_borrowed(ErrorKind::Unknown, "Invalid clock ID.")),
-    EPERM => Err(Error::new_borrowed(ErrorKind::Unknown, "Invalid clock permissions.")),
+    EFAULT => Err(SporkError::new_borrowed(SporkErrorKind::Unknown, "Invalid timespec address space.")),
+    EINVAL => Err(SporkError::new_borrowed(SporkErrorKind::Unknown, "Invalid clock ID.")),
+    EPERM => Err(SporkError::new_borrowed(SporkErrorKind::Unknown, "Invalid clock permissions.")),
     _ => Ok(code)
   }
 }
 
 // jiffies
 #[allow(dead_code)]
-pub fn get_clock_ticks() -> Result<i64, Error> {
+pub fn get_clock_ticks() -> Result<i64, SporkError> {
   Ok(unsafe { libc::sysconf(libc::_SC_CLK_TCK) })
 }
 
@@ -77,7 +77,7 @@ pub fn timespec_to_timeval(times: &timespec) -> timeval {
 }
 
 // this should always be called before get_stats since they both consume the clock
-pub fn get_thread_cpu_time() -> Result<timespec, Error> {
+pub fn get_thread_cpu_time() -> Result<timespec, SporkError> {
   let mut times = empty_timespec();
   let _ = try!(map_posix_resp(unsafe {
     libc::clock_gettime(CLOCK_THREAD_CPUTIME_ID, &mut times)
@@ -86,7 +86,7 @@ pub fn get_thread_cpu_time() -> Result<timespec, Error> {
   Ok(times)
 }
 
-pub fn get_stats(kind: &StatType) -> Result<rusage, Error> {
+pub fn get_stats(kind: &StatType) -> Result<rusage, SporkError> {
   let (t_times, code): (Option<timespec>, i32) = match *kind {
     StatType::Process => (None, RUSAGE_SELF),
     StatType::Children => (None, RUSAGE_CHILDREN),

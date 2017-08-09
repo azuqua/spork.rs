@@ -10,8 +10,8 @@
 //!
 //! use spork::{
 //!   Spork,
-//!   Error,
-//!   ErrorKind,
+//!   SporkError,
+//!   SporkErrorKind,
 //!   Platform,
 //!   StatType,
 //!   Stats
@@ -66,96 +66,77 @@ mod posix;
 #[cfg(target_os="macos")]
 mod darwin;
 
- 
-/// An error type describing the possible error cases for this module. If compiled with the feature `compile_unimplemented`
-/// certain functions will always return `Unimplemented` errors at runtime. See the feature notes for more information.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Error {
-  InvalidStatType { desc: &'static str, details: String },
-  Unimplemented { desc: &'static str, details: String },
-  Unknown { desc: &'static str, details: String }
-}
-
-/// The kind of error being created.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ErrorKind {
+pub enum SporkErrorKind {
   InvalidStatType,
   Unimplemented,
   Unknown
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SporkError {
+    desc: &'static str,
+    details: String,
+    kind: SporkErrorKind
+}
 
-impl From<sys_info::Error> for Error {
+impl SporkError {
+    pub fn new<T: Into<String>>(kind: SporkErrorKind, details: T) -> SporkError {
+        let desc = match kind {
+            SporkErrorKind::InvalidStatType => "Invalid Stat Type",
+            SporkErrorKind::Unimplemented => "Unimplemented",
+            SporkErrorKind::Unknown => "Unknown Error"
+        };
+
+        SporkError {
+            desc: desc,
+            details: details.into(),
+            kind: kind,
+        }
+    }
+
+    pub fn details(&self) -> &str {
+        &self.details
+    }
+
+    pub fn kind(&self) -> &SporkErrorKind {
+        &self.kind
+    }
+
+    /// Formerly inner
+    pub fn to_string(&self) -> String {
+        format!("{}: {}", &self.desc, &self.details)
+    }
+
+    /// Create a new `Error` instance from a borrowed str.
+    pub fn new_borrowed(kind: SporkErrorKind, details: &str) -> SporkError {
+      SporkError::new(kind, details.to_owned())
+    }
+
+    /// Shortcut for creating an empty `Unimplemented` error.
+    pub fn unimplemented() -> SporkError {
+      SporkError::new(SporkErrorKind::Unimplemented, String::new())
+    }
+}
+
+impl From<sys_info::Error> for SporkError {
   fn from(error: sys_info::Error) -> Self {
     match error {
       sys_info::Error::UnsupportedSystem => {
-        Error::new(ErrorKind::Unimplemented, "Unsupported system.".to_owned())
+        SporkError::new(SporkErrorKind::Unimplemented, "Unsupported system.".to_owned())
       },
       sys_info::Error::ExecFailed(s) => {
-        Error::new(ErrorKind::Unknown, s)
+        SporkError::new(SporkErrorKind::Unknown, s)
       }
     }
   }
 }
 
-impl From<IoError> for Error {
+impl From<IoError> for SporkError {
   fn from(error: IoError) -> Self {
-    Error::new(ErrorKind::Unknown, format!("{}", error))
+    SporkError::new(SporkErrorKind::Unknown, format!("{}", error))
   }
 }
-
-impl Error {
-  
-  /// Create a new `Error` instance.
-  pub fn new(kind: ErrorKind, details: String) -> Error {
-    match kind {
-      ErrorKind::InvalidStatType => {
-        Error::InvalidStatType {
-          desc: "Invalid stat type",
-          details: details
-        }
-      },
-      ErrorKind::Unimplemented => {
-        Error::Unimplemented {
-          desc: "Unimplemented",
-          details: details
-        }
-      },
-      ErrorKind::Unknown => {
-        Error::Unknown {
-          desc: "Unknown",
-          details: details
-        }
-      }
-    }
-  }
-
-  /// Create a new `Error` instance from a borrowed str.
-  pub fn new_borrowed(kind: ErrorKind, details: &str) -> Error {
-    Error::new(kind, details.to_owned())
-  }
-
-  /// Shortcut for creating an empty `Unimplemented` error.
-  pub fn unimplemented() -> Error {
-    Error::new(ErrorKind::Unimplemented, String::new())
-  }
-
-  /// Read the error's details.
-  pub fn inner(&self) -> &str {
-    match *self {
-      Error::InvalidStatType { desc: _, ref details } => details,
-      Error::Unimplemented { desc: _, ref details } => details,
-      Error::Unknown { desc: _, ref details } => details
-    }
-  }
-
-  /// Read a copy of the error's details.
-  pub fn inner_owned(&self) -> String {
-    self.inner().to_owned()
-  }
-
-}
-
 
 /// An enum describing how to scope the CPU and memory data. `Process` reads CPU and memory usage across the entire process
 /// and can be used with `stats_with_cpus`, `Children` reads CPU and memory for child threads of the calling thread and can 
@@ -248,7 +229,7 @@ pub struct Spork {
 impl Spork {
 
   /// Create a new `Spork` instance.
-  pub fn new() -> Result<Spork, Error> {  
+  pub fn new() -> Result<Spork, SporkError> {  
     Ok(Spork {
       history: History::default(),
       platform: try!(utils::get_platform()),
@@ -268,7 +249,7 @@ impl Spork {
   ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
   /// ```
   #[cfg(target_os="linux")]
-  pub fn stats(&self, kind: StatType) -> Result<Stats, Error> {
+  pub fn stats(&self, kind: StatType) -> Result<Stats, SporkError> {
     let now = utils::now_ms();
     let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
@@ -299,7 +280,7 @@ impl Spork {
   ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
   /// ```
   #[cfg(target_os="macos")]
-  pub fn stats(&self, kind: StatType) -> Result<Stats, Error> {
+  pub fn stats(&self, kind: StatType) -> Result<Stats, SporkError> {
     let now = utils::now_ms();
     let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
@@ -338,14 +319,14 @@ impl Spork {
   ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
   /// ```
   #[cfg(target_os = "linux")]
-  pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, Error> {
+  pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, SporkError> {
     let cores = match cores {
       Some(c) => c,
       None => self.cpus
     };
 
     if cores > self.cpus {
-      return Err(Error::new_borrowed(ErrorKind::Unknown, "Invalid CPU count."));
+      return Err(SporkError::new_borrowed(SporkErrorKind::Unknown, "Invalid CPU count."));
     }
 
     let freq = utils::scale_freq_by_cores(self.clock, cores);
@@ -387,14 +368,14 @@ impl Spork {
   ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
   /// ```
   #[cfg(target_os="macos")]
-  pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, Error> {
+  pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, SporkError> {
     let cores = match cores {
       Some(c) => c,
       None => self.cpus
     };
 
     if cores > self.cpus {
-      return Err(Error::new_borrowed(ErrorKind::Unknown, "Invalid CPU count."));
+      return Err(SporkError::new_borrowed(ErrorKind::Unknown, "Invalid CPU count."));
     }
 
     let freq = utils::scale_freq_by_cores(self.clock, cores);
@@ -453,7 +434,7 @@ impl Spork {
   ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
   /// ```
   #[cfg(windows)]
-  pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, Error> {
+  pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, SporkError> {
     unimplemented!();
   }
 
@@ -467,8 +448,8 @@ impl Spork {
   ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
   /// ```
   #[cfg(all(feature="compile_unimplemented", not(any(unix, windows, target_os="macos"))))]
-  pub fn stats(&self, kind:StatType) -> Result<Stats, Error> {
-    Err(Error::unimplemented()) 
+  pub fn stats(&self, kind:StatType) -> Result<Stats, SporkError> {
+    Err(SporkError::unimplemented()) 
   }
 
   /// Get CPU and memory statistics in a `Stats` instance for the provided `StatType` assuming usage across `count` CPU core(s).
@@ -489,7 +470,7 @@ impl Spork {
   ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
   /// ```
   #[cfg(all(feature="compile_unimplemented", not(any(unix, windows, target_os="macos"))))]
-  pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, Error> {
+  pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, SporkError> {
     unimplemented!();
   }
 
@@ -559,10 +540,10 @@ mod tests {
   #[test]
   fn should_create_invalid_stat_errors() {
     let msg = "Foo";
-    let error = Error::new_borrowed(ErrorKind::InvalidStatType, msg);
-    match error {
-      Error::InvalidStatType { details: _, desc: _ } => {
-        assert_eq!(error.inner(), msg);
+    let error = SporkError::new_borrowed(SporkErrorKind::InvalidStatType, msg);
+    match error.kind {
+      SporkErrorKind::InvalidStatType => {
+        assert_eq!(error.details(), msg);
       },
       _ => panic!("Invalid eror enum {:?}! Expected InvalidStatType", error)
     };
@@ -571,10 +552,10 @@ mod tests {
   #[test]
   fn should_create_unimplemented_errors() {
     let msg = "Bar";
-    let error = Error::new_borrowed(ErrorKind::Unimplemented, msg);
-    match error {
-      Error::Unimplemented { details: _, desc: _ } => {
-        assert_eq!(error.inner(), msg);
+    let error = SporkError::new_borrowed(SporkErrorKind::Unimplemented, msg);
+    match error.kind {
+      SporkErrorKind::Unimplemented => {
+        assert_eq!(error.details(), msg);
       },
       _ => panic!("Invalid eror enum {:?}! Expected Unimplemented", error)
     };
@@ -583,10 +564,10 @@ mod tests {
   #[test]
   fn should_create_uknown_errors() {
     let msg = "Baz";
-    let error = Error::new_borrowed(ErrorKind::Unknown, msg);
-    match error {
-      Error::Unknown { details: _, desc: _ } => {
-        assert_eq!(error.inner(), msg);
+    let error = SporkError::new_borrowed(SporkErrorKind::Unknown, msg);
+    match error.kind {
+      SporkErrorKind::Unknown => {
+        assert_eq!(error.details(), msg);
       },
       _ => panic!("Invalid eror enum {:?}! Expected Unknown", error)
     };
@@ -594,10 +575,10 @@ mod tests {
 
   #[test]
   fn should_shortcut_create_unimplemented_errors() {
-    let error = Error::unimplemented();
-    match error {
-      Error::Unimplemented { details: _, desc: _ } => {
-        assert_eq!(error.inner(), "");
+    let error = SporkError::unimplemented();
+    match error.kind {
+      SporkErrorKind::Unimplemented => {
+        assert_eq!(error.details(), "");
       },
       _ => panic!("Invalid unimplemented error! {:?}. Expected Unimplemented", error)
     };

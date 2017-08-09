@@ -139,7 +139,7 @@ pub fn now_ms() -> i64 {
   (now.timestamp() * 1000 + (now.timestamp_subsec_millis() as i64)) as i64
 }
 
-pub fn get_platform() -> Result<Platform, Error> {
+pub fn get_platform() -> Result<Platform, SporkError> {
   match try!(sys_info::os_type()).as_ref() {
     "Linux" => Ok(Platform::Linux),
     "Windows" => Ok(Platform::Windows),
@@ -162,17 +162,17 @@ pub fn calc_cpu_percent(duration_ms: u64, hz: u64, cpu: &CpuTime) -> f64 {
   100_f64 * (used_cycles / cycles_in_duration)
 }
 
-pub fn get_cpu_speed() -> Result<u64, Error> {
+pub fn get_cpu_speed() -> Result<u64, SporkError> {
   match sys_info::cpu_speed() {
     Ok(s) => Ok(s * 1000),
-    Err(e) => Err(Error::from(e))
+    Err(e) => Err(SporkError::from(e))
   }
 }
 
-pub fn get_num_cores() -> Result<usize, Error> {
+pub fn get_num_cores() -> Result<usize, SporkError> {
   match sys_info::cpu_num() {
     Ok(n) => Ok(n as usize),
-    Err(e) => Err(Error::from(e))
+    Err(e) => Err(SporkError::from(e))
   }
 }
 
