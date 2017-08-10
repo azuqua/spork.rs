@@ -66,6 +66,7 @@ mod posix;
 #[cfg(target_os="macos")]
 mod darwin;
 
+/// The kind of SporkError
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SporkErrorKind {
   InvalidStatType,
@@ -73,14 +74,21 @@ pub enum SporkErrorKind {
   Unknown
 }
 
+/// A Spork error struct capturing information about errors coming from Spork
+/// if compiled with the feature `compile_unimplemented 
+/// certain functions will always return `Unimplemented` errors at runtime
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SporkError {
+    /// &"static str representation of the ErrorKind. "Invalid Stat Type", "Unknown Error', etc
     desc: &'static str,
+    /// Details about the particular error
     details: String,
+    /// The kind of spork Error
     kind: SporkErrorKind
 }
 
 impl SporkError {
+    /// Create a new SporkError instance
     pub fn new<T: Into<String>>(kind: SporkErrorKind, details: T) -> SporkError {
         let desc = match kind {
             SporkErrorKind::InvalidStatType => "Invalid Stat Type",
@@ -95,15 +103,17 @@ impl SporkError {
         }
     }
 
+    /// Read the error's details
     pub fn details(&self) -> &str {
         &self.details
     }
 
+    /// Read the error's kind
     pub fn kind(&self) -> &SporkErrorKind {
         &self.kind
     }
 
-    /// Formerly inner
+    /// Read a formatted string consisting of error desc and details
     pub fn to_string(&self) -> String {
         format!("{}: {}", &self.desc, &self.details)
     }
@@ -113,7 +123,7 @@ impl SporkError {
       SporkError::new(kind, details.to_owned())
     }
 
-    /// Shortcut for creating an empty `Unimplemented` error.
+    /// Convinience function for creating an empty `Unimplemented` error.
     pub fn unimplemented() -> SporkError {
       SporkError::new(SporkErrorKind::Unimplemented, String::new())
     }
