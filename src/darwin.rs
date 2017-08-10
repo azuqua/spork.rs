@@ -1,7 +1,7 @@
 use mach::task_info::{task_basic_info, task_basic_info_t, task_events_info, task_events_info_t,
-                      task_thread_times_info, task_thread_times_info_t, MIG_ARRAY_TOO_LARGE,
-                      TASK_BASIC_INFO, TASK_BASIC_INFO_COUNT, TASK_EVENTS_INFO,
-                      TASK_EVENTS_INFO_COUNT, TASK_THREAD_TIMES_INFO, TASK_THREAD_TIMES_INFO_COUNT};
+                      task_thread_times_info, task_thread_times_info_t, MIG_ARRAY_TOO_LARGE, TASK_BASIC_INFO,
+                      TASK_BASIC_INFO_COUNT, TASK_EVENTS_INFO, TASK_EVENTS_INFO_COUNT, TASK_THREAD_TIMES_INFO,
+                      TASK_THREAD_TIMES_INFO_COUNT};
 use mach::task::task_info;
 use mach::kern_return::{KERN_INVALID_ARGUMENT, KERN_SUCCESS};
 use mach::traps::mach_task_self;

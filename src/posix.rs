@@ -1,7 +1,6 @@
 
 use libc;
-use libc::{CLOCK_THREAD_CPUTIME_ID, EFAULT, EINVAL, EPERM, RUSAGE_CHILDREN, RUSAGE_SELF,
-           RUSAGE_THREAD};
+use libc::{CLOCK_THREAD_CPUTIME_ID, EFAULT, EINVAL, EPERM, RUSAGE_CHILDREN, RUSAGE_SELF, RUSAGE_THREAD};
 use libc::timespec;
 use libc::timeval;
 use libc::rusage;

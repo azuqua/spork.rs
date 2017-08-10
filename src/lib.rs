@@ -161,7 +161,7 @@ pub enum StatType {
     /// Read usage for the calling thread.
     Thread,
     /// Read usage across all child threads of the calling thread. This can mean different things on different platforms,
-    /// and usually doesn't do what you want it to do. Use with caution, here be dragons.
+    /// and usually doesn't do what you want it to do. Use with caution.
     Children,
 }
 
@@ -325,11 +325,7 @@ impl Spork {
     ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
     /// ```
     #[cfg(target_os = "linux")]
-    pub fn stats_with_cpus(
-        &self,
-        kind: StatType,
-        cores: Option<usize>,
-    ) -> Result<Stats, SporkError> {
+    pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, SporkError> {
         let cores = match cores {
             Some(c) => c,
             None => self.cpus,
@@ -381,11 +377,7 @@ impl Spork {
     ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
     /// ```
     #[cfg(target_os = "macos")]
-    pub fn stats_with_cpus(
-        &self,
-        kind: StatType,
-        cores: Option<usize>,
-    ) -> Result<Stats, SporkError> {
+    pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, SporkError> {
         let cores = match cores {
             Some(c) => c,
             None => self.cpus,
@@ -454,11 +446,7 @@ impl Spork {
     ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
     /// ```
     #[cfg(windows)]
-    pub fn stats_with_cpus(
-        &self,
-        kind: StatType,
-        cores: Option<usize>,
-    ) -> Result<Stats, SporkError> {
+    pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, SporkError> {
         unimplemented!();
     }
 
@@ -494,11 +482,7 @@ impl Spork {
     ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
     /// ```
     #[cfg(all(feature = "compile_unimplemented", not(any(unix, windows, target_os = "macos"))))]
-    pub fn stats_with_cpus(
-        &self,
-        kind: StatType,
-        cores: Option<usize>,
-    ) -> Result<Stats, SporkError> {
+    pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, SporkError> {
         Err(SporkError::unimplemented())
     }
 
