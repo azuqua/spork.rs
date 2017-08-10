@@ -523,13 +523,16 @@ mod tests {
 
     use super::*;
 
+    use std::io;
+
     #[test]
     fn should_create_invalid_stat_errors() {
         let msg = "Foo";
         let error = SporkError::new_borrowed(SporkErrorKind::InvalidStatType, msg);
-        match error.kind {
+        match *error.kind() {
             SporkErrorKind::InvalidStatType => {
                 assert_eq!(error.details(), msg);
+                assert_eq!(error.to_string(), format!("Invalid Stat Type: {}", msg));
             }
             _ => panic!("Invalid eror enum {:?}! Expected InvalidStatType", error),
         };
@@ -539,21 +542,23 @@ mod tests {
     fn should_create_unimplemented_errors() {
         let msg = "Bar";
         let error = SporkError::new_borrowed(SporkErrorKind::Unimplemented, msg);
-        match error.kind {
+        match *error.kind() {
             SporkErrorKind::Unimplemented => {
                 assert_eq!(error.details(), msg);
+                assert_eq!(error.to_string(), format!("Unimplemented: {}", msg));
             }
             _ => panic!("Invalid eror enum {:?}! Expected Unimplemented", error),
         };
     }
 
     #[test]
-    fn should_create_uknown_errors() {
+    fn should_create_unknown_errors() {
         let msg = "Baz";
         let error = SporkError::new_borrowed(SporkErrorKind::Unknown, msg);
-        match error.kind {
+        match *error.kind() {
             SporkErrorKind::Unknown => {
                 assert_eq!(error.details(), msg);
+                assert_eq!(error.to_string(), format!("Unknown Error: {}", msg));
             }
             _ => panic!("Invalid eror enum {:?}! Expected Unknown", error),
         };
@@ -562,9 +567,53 @@ mod tests {
     #[test]
     fn should_shortcut_create_unimplemented_errors() {
         let error = SporkError::unimplemented();
-        match error.kind {
+        match *error.kind() {
             SporkErrorKind::Unimplemented => {
                 assert_eq!(error.details(), "");
+            }
+            _ => panic!(
+                "Invalid unimplemented error! {:?}. Expected Unimplemented",
+                error
+            ),
+        };
+    }
+
+    #[test]
+    fn should_create_error_from_new_borrowed() {
+        let error = SporkError::new_borrowed(SporkErrorKind::Unimplemented, "Foo");
+        match *error.kind() {
+            SporkErrorKind::Unimplemented => {
+                assert_eq!(error.details(), "Foo");
+            }
+            _ => panic!(
+                "Invalid unimplemented error! {:?}. Expected Unimplemented",
+                error
+            ),
+        };
+    }
+
+    #[test]
+    fn should_create_error_from_sys_info_error() {
+        let err = sys_info::Error::UnsupportedSystem;
+        let error: SporkError = err.into();
+        match *error.kind() {
+            SporkErrorKind::Unimplemented => {
+                assert_eq!(error.details(), "Unsupported system.");
+            }
+            _ => panic!(
+                "Invalid unimplemented error! {:?}. Expected Unimplemented",
+                error
+            ),
+        };
+    }
+
+    #[test]
+    fn should_create_error_from_io_error() {
+        let err = io::Error::last_os_error();
+        let error: SporkError = err.into();
+        match *error.kind() {
+            SporkErrorKind::Unknown => {
+                assert!(true);
             }
             _ => panic!(
                 "Invalid unimplemented error! {:?}. Expected Unimplemented",
