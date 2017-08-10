@@ -471,7 +471,7 @@ impl Spork {
   /// ```
   #[cfg(all(feature="compile_unimplemented", not(any(unix, windows, target_os="macos"))))]
   pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, SporkError> {
-    unimplemented!();
+    Err(SporkError::unimplemented()) 
   }
 
   /// Get the system type.
@@ -742,54 +742,6 @@ mod tests {
     assert!(stats.polled <= _final as i64);
   }
 
-  // this is a huge pain to test, and results are spotty at best
-  /*
-  #[test]
-  #[cfg(unix)]
-  fn should_get_linux_children_stats_fib_25() {
-    let wait = rand_in_range(100, 400);
-    let before = utils::now_ms() as u64;
-    let spork = Spork::new().unwrap();
-
-    let jh = thread::spawn(move || {
-      sleep_ms!(wait);
-      fib(35);
-    });
-    let _ = jh.join();
-
-    let stats = match spork.stats(StatType::Children) {
-      Ok(s) => s,
-      Err(e) => panic!("Stats error {:?}", e)
-    };
-    let _final = utils::now_ms() as u64;
-
-    println!("{:?}", stats);
-    assert!(stats.cpu > 10_f64);
-    assert!(stats.memory > 0);
-    assert!(stats.duration >= wait);
-    assert!(stats.duration <= _final - before);
-    assert_eq!(stats.cores, 1);
-    assert_eq!(stats.kind, StatType::Children);
-    assert!(stats.uptime >= wait);
-    assert!(stats.uptime <= _final - before);
-    assert!(stats.polled <= _final as i64);
-  }
-  */
-
-  #[test]
-  #[cfg(windows)]
-  fn should_get_windows_stats() {
-
-
-  }
-
-  #[test]
-  #[cfg(target_os="macos")]
-  fn should_get_macos_stats() {
-
-
-  }
-
   #[test]
   #[cfg(unix)]
   fn should_get_linux_process_stats_with_cpus() {
@@ -851,42 +803,6 @@ mod tests {
     assert!(stats.uptime <= _final - before);
     assert!(stats.polled <= _final as i64);
   }
-
-  // see should_get_linux_children_stats_fib_25
-  /*
-  #[test]
-  #[cfg(unix)]
-  fn should_get_linux_children_stats_with_cpus() {
-    let wait = rand_in_range(100, 400);
-    let expected_cpu = 5_f64;
-
-    let before = utils::now_ms() as u64;
-    let spork = Spork::new().unwrap();
-
-    let jh = thread::spawn(move || {
-      sleep_ms!(wait);
-      fib(35);
-    });
-    let _ = jh.join();
-
-    let stats = match spork.stats_with_cpus(StatType::Children, Some(spork.num_cores())) {
-      Ok(s) => s,
-      Err(e) => panic!("Stats error {:?}", e)
-    };
-    let _final = utils::now_ms() as u64;
-
-    println!("{:?}", stats);
-    assert!(stats.cpu > expected_cpu);
-    assert!(stats.memory > 0);
-    assert!(stats.duration >= wait);
-    assert!(stats.duration <= _final - before);
-    assert_eq!(stats.cores, spork.num_cores());
-    assert_eq!(stats.kind, StatType::Children);
-    assert!(stats.uptime >= wait);
-    assert!(stats.uptime <= _final - before);
-    assert!(stats.polled <= _final as i64);
-  }
-  */
 
   #[test]
   #[cfg(windows)]
