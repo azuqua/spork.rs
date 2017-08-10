@@ -4,14 +4,7 @@ extern crate rand;
 extern crate chrono;
 
 #[allow(unused_imports)]
-use spork::{
-  SporkError,
-  SporkErrorKind,
-  Spork,
-  StatType,
-  Stats,
-  Platform
-};
+use spork::{Platform, Spork, SporkError, SporkErrorKind, StatType, Stats};
 
 use std::thread;
 use std::time;
@@ -27,16 +20,16 @@ macro_rules! sleep_ms(
 );
 
 fn fib(n: u64) -> u64 {
-  if n > 2 {
-    fib(n - 1) + fib(n - 2) 
-  } else {
-    1
-  }
+    if n > 2 {
+        fib(n - 1) + fib(n - 2)
+    } else {
+        1
+    }
 }
 
 fn now_ms() -> i64 {
-  let now = UTC::now();
-  (now.timestamp() * 1000 + (now.timestamp_subsec_millis() as i64)) as i64
+    let now = UTC::now();
+    (now.timestamp() * 1000 + (now.timestamp_subsec_millis() as i64)) as i64
 }
 
 fn rand_in_range(l: u64, r: u64) -> u64 {
@@ -47,34 +40,34 @@ fn rand_in_range(l: u64, r: u64) -> u64 {
 
 #[test]
 fn should_poll_no_cpu() {
-  let spork = match Spork::new() {
-    Ok(s) => s,
-    Err(e) => panic!("Error creating spork! {:?}", e)
-  };
+    let spork = match Spork::new() {
+        Ok(s) => s,
+        Err(e) => panic!("Error creating spork! {:?}", e),
+    };
 
-  sleep_ms!(5000);
-  let stats = match spork.stats(StatType::Thread) {
-    Ok(s) => s,
-    Err(e) => panic!("Error polling stats! {:?}", e)
-  };
+    sleep_ms!(5000);
+    let stats = match spork.stats(StatType::Thread) {
+        Ok(s) => s,
+        Err(e) => panic!("Error polling stats! {:?}", e),
+    };
 
-  assert!(stats.cpu < 1_f64);
+    assert!(stats.cpu < 1_f64);
 }
 
 #[test]
 fn should_poll_full_cpu() {
-  let spork = match Spork::new() {
-    Ok(s) => s,
-    Err(e) => panic!("Error creating spork! {:?}", e)
-  };
+    let spork = match Spork::new() {
+        Ok(s) => s,
+        Err(e) => panic!("Error creating spork! {:?}", e),
+    };
 
-  fib(43);
-  let stats = match spork.stats(StatType::Thread) {
-    Ok(s) => s,
-    Err(e) => panic!("Error polling stats! {:?}", e)
-  };
+    fib(43);
+    let stats = match spork.stats(StatType::Thread) {
+        Ok(s) => s,
+        Err(e) => panic!("Error polling stats! {:?}", e),
+    };
 
-  assert!(stats.cpu > 95_f64);
+    assert!(stats.cpu > 95_f64);
 }
 
 #[test]
@@ -93,8 +86,8 @@ fn should_get_linux_process_stats_fib_25() {
     fib(28);
 
     let stats = match spork.stats(StatType::Process) {
-      Ok(s) => s,
-      Err(e) => panic!("Stats error {:?}", e)
+        Ok(s) => s,
+        Err(e) => panic!("Stats error {:?}", e),
     };
     let _final = now_ms() as u64;
 
@@ -124,8 +117,8 @@ fn should_get_linux_thread_stats_fib_35() {
     fib(35);
 
     let stats = match spork.stats(StatType::Thread) {
-      Ok(s) => s,
-      Err(e) => panic!("Stats error {:?}", e)
+        Ok(s) => s,
+        Err(e) => panic!("Stats error {:?}", e),
     };
     let _final = now_ms() as u64;
 
@@ -142,9 +135,9 @@ fn should_get_linux_thread_stats_fib_35() {
 }
 
 
-  // TODO: REMOVE
+// TODO: REMOVE
 #[test]
-  //#[cfg(unix)]
+//#[cfg(unix)]
 fn should_get_low_cpu_linux_thread_stats() {
     let wait = rand_in_range(4000, 6000);
     let expected_cpu = 1.5_f64;
@@ -155,8 +148,8 @@ fn should_get_low_cpu_linux_thread_stats() {
     sleep_ms!(wait);
 
     let stats = match spork.stats(StatType::Thread) {
-      Ok(s) => s,
-      Err(e) => panic!("Stats error {:?}", e)
+        Ok(s) => s,
+        Err(e) => panic!("Stats error {:?}", e),
     };
     let _final = now_ms() as u64;
 
@@ -170,12 +163,12 @@ fn should_get_low_cpu_linux_thread_stats() {
     assert!(stats.uptime >= wait);
     assert!(stats.uptime <= _final - before);
     assert!(stats.polled <= _final as i64);
-  }
+}
 
-  // TODO: REMOVE
+// TODO: REMOVE
 #[test]
 //#[cfg(unix)]
-  fn should_get_linux_process_stats_with_cpus() {
+fn should_get_linux_process_stats_with_cpus() {
     let wait = rand_in_range(100, 400);
     let expected_cpu = 5_f64;
 
@@ -187,8 +180,8 @@ fn should_get_low_cpu_linux_thread_stats() {
     fib(25);
 
     let stats = match spork.stats_with_cpus(StatType::Process, Some(spork.num_cores())) {
-      Ok(s) => s,
-      Err(e) => panic!("Stats error {:?}", e)
+        Ok(s) => s,
+        Err(e) => panic!("Stats error {:?}", e),
     };
     let _final = now_ms() as u64;
 
@@ -202,11 +195,11 @@ fn should_get_low_cpu_linux_thread_stats() {
     assert!(stats.uptime >= wait);
     assert!(stats.uptime <= _final - before);
     assert!(stats.polled <= _final as i64);
-  }
+}
 
-  #[test]
-  //#[cfg(unix)]
-  fn should_get_linux_thread_stats_with_cpus() {
+#[test]
+//#[cfg(unix)]
+fn should_get_linux_thread_stats_with_cpus() {
     let wait = rand_in_range(100, 400);
     let expected_cpu = 5_f64;
 
@@ -218,8 +211,8 @@ fn should_get_low_cpu_linux_thread_stats() {
     fib(35);
 
     let stats = match spork.stats_with_cpus(StatType::Thread, Some(spork.num_cores())) {
-      Ok(s) => s,
-      Err(e) => panic!("Stats error {:?}", e)
+        Ok(s) => s,
+        Err(e) => panic!("Stats error {:?}", e),
     };
     let _final = now_ms() as u64;
 
@@ -233,36 +226,21 @@ fn should_get_low_cpu_linux_thread_stats() {
     assert!(stats.uptime >= wait);
     assert!(stats.uptime <= _final - before);
     assert!(stats.polled <= _final as i64);
-  }
-
-#[test]
-fn should_poll_half_cpu() {
-
-
 }
 
 #[test]
-fn should_poll_half_cpu_repeatedly() {
-
-
-}
+fn should_poll_half_cpu() {}
 
 #[test]
-fn should_poll_full_cpu_repeatedly() {
-
-
-}
+fn should_poll_half_cpu_repeatedly() {}
 
 #[test]
-fn should_poll_no_cpu_repeatedly() {
+fn should_poll_full_cpu_repeatedly() {}
 
-
-}
+#[test]
+fn should_poll_no_cpu_repeatedly() {}
 
 // this is pretty much impossible to test reliably, since the tests are spread across threads
 // and the cpu usage at any point in time is very difficult to forecast
 #[test]
-fn should_poll_process_cpu_repeatedly() {
-  
-
-}
+fn should_poll_process_cpu_repeatedly() {}

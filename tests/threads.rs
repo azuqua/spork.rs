@@ -1,19 +1,12 @@
 extern crate spork;
 
 #[allow(unused_imports)]
-use spork::{
-  SporkError,
-  SporkErrorKind,
-  Spork,
-  StatType,
-  Stats,
-  Platform
-};
+use spork::{Platform, Spork, SporkError, SporkErrorKind, StatType, Stats};
 
 use std::time;
 
 use std::thread;
-use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc::{Receiver, Sender};
 use std::sync::mpsc;
 
 macro_rules! sleep_ms(
@@ -23,16 +16,16 @@ macro_rules! sleep_ms(
 );
 
 fn fib(n: u64) -> u64 {
-  if n > 2 {
-    fib(n - 1) + fib(n - 2) 
-  } else {
-    1
-  }
+    if n > 2 {
+        fib(n - 1) + fib(n - 2)
+    } else {
+        1
+    }
 }
 
 #[test]
 fn should_correctly_poll_2_threads_separately() {
-    // This spawns two threads (simple, expensive) 
+    // This spawns two threads (simple, expensive)
     // One thread (expensive) performs a CPU expensive operation
     // The second thread (simple) performs nothing expensive and waits for thread 1
     // Once expensive is done, thread one reports it's CPU times and we assert thread out spike CPU higher
@@ -40,16 +33,16 @@ fn should_correctly_poll_2_threads_separately() {
     let (tx_expensive, rx_expensive): (Sender<f64>, Receiver<f64>) = mpsc::channel();
     let child_expensive = thread::spawn(move || {
         let spork = match Spork::new() {
-          Ok(s) => s,
-          Err(e) => panic!("Error creating spork! {:?}", e)
+            Ok(s) => s,
+            Err(e) => panic!("Error creating spork! {:?}", e),
         };
 
         sleep_ms!(400);
         fib(42);
 
         let stats = match spork.stats(StatType::Thread) {
-          Ok(s) => s,
-          Err(e) => panic!("Error polling stats! {:?}", e)
+            Ok(s) => s,
+            Err(e) => panic!("Error polling stats! {:?}", e),
         };
         tx_expensive.send(stats.cpu).unwrap();
     });
@@ -58,16 +51,16 @@ fn should_correctly_poll_2_threads_separately() {
     let (tx_simple, rx_simple): (Sender<f64>, Receiver<f64>) = mpsc::channel();
     thread::spawn(move || {
         let spork = match Spork::new() {
-          Ok(s) => s,
-          Err(e) => panic!("Error creating spork! {:?}", e)
+            Ok(s) => s,
+            Err(e) => panic!("Error creating spork! {:?}", e),
         };
 
         // Wait for expensive thread to end
         child_expensive.join().unwrap();
 
         let stats = match spork.stats(StatType::Thread) {
-          Ok(s) => s,
-          Err(e) => panic!("Error polling stats! {:?}", e)
+            Ok(s) => s,
+            Err(e) => panic!("Error polling stats! {:?}", e),
         };
 
         tx_simple.send(stats.cpu).unwrap();
@@ -81,23 +74,23 @@ fn should_correctly_poll_2_threads_separately() {
 
 #[test]
 fn should_correctly_poll_10_threads_separately() {
-    let mut thread_handles = vec!();
+    let mut thread_handles = vec![];
 
     for _ in 0..5 {
         let thread_handle = thread::spawn(move || {
             let (tx_expensive, rx_expensive): (Sender<f64>, Receiver<f64>) = mpsc::channel();
             let child_expensive = thread::spawn(move || {
                 let spork = match Spork::new() {
-                  Ok(s) => s,
-                  Err(e) => panic!("Error creating spork! {:?}", e)
+                    Ok(s) => s,
+                    Err(e) => panic!("Error creating spork! {:?}", e),
                 };
 
                 sleep_ms!(400);
                 fib(43);
 
                 let stats = match spork.stats(StatType::Thread) {
-                  Ok(s) => s,
-                  Err(e) => panic!("Error polling stats! {:?}", e)
+                    Ok(s) => s,
+                    Err(e) => panic!("Error polling stats! {:?}", e),
                 };
                 tx_expensive.send(stats.cpu).unwrap();
             });
@@ -106,16 +99,16 @@ fn should_correctly_poll_10_threads_separately() {
             let (tx_simple, rx_simple): (Sender<f64>, Receiver<f64>) = mpsc::channel();
             thread::spawn(move || {
                 let spork = match Spork::new() {
-                  Ok(s) => s,
-                  Err(e) => panic!("Error creating spork! {:?}", e)
+                    Ok(s) => s,
+                    Err(e) => panic!("Error creating spork! {:?}", e),
                 };
 
                 // Wait for expensive thread to end
                 child_expensive.join().unwrap();
 
                 let stats = match spork.stats(StatType::Thread) {
-                  Ok(s) => s,
-                  Err(e) => panic!("Error polling stats! {:?}", e)
+                    Ok(s) => s,
+                    Err(e) => panic!("Error polling stats! {:?}", e),
                 };
 
                 tx_simple.send(stats.cpu).unwrap();
