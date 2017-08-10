@@ -292,27 +292,6 @@ mod tests {
   }
 
   #[test]
-  fn should_poll_cpu_fib_42() {
-    let kind = StatType::Thread;
-    let hz = utils::get_cpu_speed().unwrap();
-    let _ = match get_stats(&kind) {
-      Ok(u) => u,
-      Err(e) => panic!("Error getting stats {:?}", e)
-    };
-    let started = utils::now_ms();
-    fib(42);
-    let finished = utils::now_ms();
-    let rusage = match get_stats(&kind) {
-      Ok(u) => u,
-      Err(e) => panic!("Error getting stats {:?}", e)
-    };
-    let duration = utils::safe_unsigned_sub(finished, started); 
-    let cpu = get_cpu_percent(hz, duration, &rusage);
-  
-    assert!(cpu > 90.0);
-  }
-
-  #[test]
   fn should_get_thread_cpu_times() {
     let times = match get_thread_cpu_time() {
       Ok(t) => t,
