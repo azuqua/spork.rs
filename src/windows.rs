@@ -6,6 +6,8 @@ use winapi::*;
 use kernel32;
 use winapi::psapi::PROCESS_MEMORY_COUNTERS;
 
+use utils::CpuTime;
+
 use super::*;
 
 
@@ -44,7 +46,7 @@ fn wtf(f: winapi::minwindef::FILETIME) -> u64 {
     (f.dwLowDateTime + (2 << 31) * f.dwHighDateTime) as u64
 }
 
-pub fn get_mem_stats(kind: &StatType) -> Result<PROCESS_MEMORY_COUNTERS, Error> {
+pub fn get_mem_stats(kind: &StatType) -> Result<PROCESS_MEMORY_COUNTERS, SporkError> {
 
     match *kind {
         StatType::Process => {
@@ -69,8 +71,8 @@ pub fn get_mem_stats(kind: &StatType) -> Result<PROCESS_MEMORY_COUNTERS, Error> 
 
             Ok(memory)
         }
-        StatType::Children => Err(Error::new(
-            ErrorKind::Unimplemented,
+        StatType::Children => Err(SporkError::new(
+            SporkErrorKind::Unimplemented,
             "Windows child thread memory stat not yet implemented!".to_owned(),
         )),
     }
@@ -83,7 +85,7 @@ pub struct WindowsCpuStats {
     user: u64,
 }
 
-pub fn get_cpu_times(kind: &StatType) -> Result<WindowsCpuStats, Error> {
+pub fn get_cpu_times(kind: &StatType) -> Result<WindowsCpuStats, SporkError> {
 
     match *kind {
         StatType::Process => {
@@ -136,8 +138,8 @@ pub fn get_cpu_times(kind: &StatType) -> Result<WindowsCpuStats, Error> {
         }
         StatType::Children => {
             // TODO
-            Err(Error::new(
-                ErrorKind::Unimplemented,
+            Err(SporkError::new(
+                SporkErrorKind::Unimplemented,
                 "Windows child thread CPU time stat is not yet implemented!".to_owned(),
             ))
         }
@@ -145,11 +147,16 @@ pub fn get_cpu_times(kind: &StatType) -> Result<WindowsCpuStats, Error> {
 
 }
 
-pub fn get_cpu_percent(history: &History, val: &WindowsCpuStats) -> f64 {
-    unimplemented!();
 
+pub fn get_cpu_percent(hz: u64, duration: u64, val: &WindowsCpuStats) -> f64 {
+    let times = CpuTime {
+        sec: (val.kernel + val.user) as u64,
+        usec: 1 as u64,
+    };
+
+    utils::calc_cpu_percent(duration, hz, &times)
 }
 
-pub fn get_clock_ticks() -> Result<i64, Error> {
+pub fn get_clock_ticks() -> Result<i64, SporkError> {
     unimplemented!();
 }

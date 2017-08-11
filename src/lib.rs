@@ -421,11 +421,35 @@ impl Spork {
     ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
     /// ```
     #[cfg(windows)]
-    pub fn stats(&self, kind: StatType) -> Result<Stats, Error> {
+    pub fn stats(&self, kind: StatType) -> Result<Stats, SporkError> {
+        let now = utils::now_ms();
+        let duration = utils::calc_duration(&kind, &self.history, self.started, now);
+
         let cpu_times = try!(windows::get_cpu_times(&kind));
         let mem = try!(windows::get_mem_stats(&kind));
+        
+        //println!("Clock");
+        //println!("{:?}", self.clock);
 
-        unimplemented!();
+        let cpu = windows::get_cpu_percent(self.clock, duration, &cpu_times);
+
+        let stats = Stats {
+            kind: kind.clone(),
+            polled: now,
+            duration: duration,
+            cpu: cpu,
+            memory: (mem.PeakWorkingSetSize as u64) / 1024,
+            uptime: utils::safe_unsigned_sub(now, self.started),
+            cores: 1,
+        };
+
+        //println!("Stats");
+        //println!("{:?}", stats);
+
+        self.history.set_last(&kind, stats.clone());
+        Ok(stats)
+
+        //unimplemented!();
     }
 
     /// Get CPU and memory statistics in a `Stats` instance for the provided `StatType` assuming usage across `count` CPU core(s).
