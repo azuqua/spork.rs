@@ -20,7 +20,6 @@ winapi = "0.2"
 
 [dependencies.mach]
 git = "https://github.com/azuqua/mach"
-branch = "holden/develop"
 
 [dev-dependencies]
 rand = "0.3.15"
