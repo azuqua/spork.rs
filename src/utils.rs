@@ -229,7 +229,6 @@ mod tests {
 
     #[test]
     fn should_get_cpu_speed() {
-        // FIXME make this smarter
         let speed = match get_cpu_speed() {
             Ok(s) => s,
             Err(e) => panic!("{:?}", e),
@@ -240,7 +239,6 @@ mod tests {
 
     #[test]
     fn should_get_num_cores() {
-        // FIXME make this smarter
         let cores = match get_num_cores() {
             Ok(n) => n,
             Err(e) => panic!("{:?}", e),
@@ -445,7 +443,6 @@ mod tests {
     #[test]
     fn should_get_now_ms() {
         let now = now_ms();
-        // FIXME make this smarter
         assert!(now > 0);
     }
 

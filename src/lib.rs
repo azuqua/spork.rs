@@ -632,14 +632,12 @@ mod tests {
     #[test]
     fn should_get_cpu_cores() {
         let spork = Spork::new().unwrap();
-        // FIXME make this smarter
         assert!(spork.num_cores() > 0);
     }
 
     #[test]
     fn should_get_cpu_speed() {
         let spork = Spork::new().unwrap();
-        // FIXME make this smarter
         assert!(spork.clock_speed() > 0);
     }
 
