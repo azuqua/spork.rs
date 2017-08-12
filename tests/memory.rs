@@ -4,6 +4,7 @@ extern crate spork;
 use spork::{Platform, Spork, SporkError, SporkErrorKind, StatType, Stats};
 
 #[test]
+#[cfg(target_os = "linux")]
 fn should_poll_no_memory_change_process() {
     let spork = match Spork::new() {
         Ok(s) => s,
@@ -56,6 +57,7 @@ fn should_poll_increased_memory_process() {
 }
 
 #[test]
+#[cfg(target_os = "linux")]
 fn should_poll_no_memory_change_thread() {
     let spork = match Spork::new() {
         Ok(s) => s,

@@ -51,7 +51,7 @@ fn should_poll_no_cpu() {
         Err(e) => panic!("Error polling stats! {:?}", e),
     };
 
-    assert!(stats.cpu < 1_f64);
+    assert!(stats.cpu < 2_f64);
 }
 
 #[test]

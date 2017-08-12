@@ -385,7 +385,7 @@ impl Spork {
 
         if cores > self.cpus {
             return Err(SporkError::new_borrowed(
-                ErrorKind::Unknown,
+                SporkErrorKind::Unknown,
                 "Invalid CPU count.",
             ));
         }
