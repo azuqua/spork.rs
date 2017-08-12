@@ -76,14 +76,14 @@ fn should_get_linux_process_stats_fib_25() {
     // intentionally introduce some delays to simulate some weird contention for the clocks among
     // testing threads in order to hopefully draw out any bugs scoping the results between threads
     let wait = rand_in_range(100, 400);
-    let expected_cpu = 10_f64;
+    let expected_cpu = 8_f64;
 
     let before = now_ms() as u64;
     let spork = Spork::new().unwrap();
 
     sleep_ms!(wait);
     // kick the cpu a bit
-    fib(28);
+    fib(30);
 
     let stats = match spork.stats(StatType::Process) {
         Ok(s) => s,

@@ -79,7 +79,7 @@ pub enum SporkErrorKind {
 /// certain functions will always return `Unimplemented` errors at runtime
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SporkError {
-    /// &"static str representation of the ErrorKind. "Invalid Stat Type", "Unknown Error', etc
+    /// Representation of the ErrorKind. "Invalid Stat Type", "Unknown Error', etc
     desc: &'static str,
     /// Details about the particular error
     details: String,
