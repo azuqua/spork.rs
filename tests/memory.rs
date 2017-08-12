@@ -56,6 +56,7 @@ fn should_poll_increased_memory_process() {
 }
 
 #[test]
+#[cfg(unix)]
 fn should_poll_no_memory_change_thread() {
     let spork = match Spork::new() {
         Ok(s) => s,
@@ -78,6 +79,7 @@ fn should_poll_no_memory_change_thread() {
 }
 
 #[test]
+#[cfg(unix)]
 fn should_poll_increased_memory_thread() {
     let spork = match Spork::new() {
         Ok(s) => s,
@@ -92,8 +94,6 @@ fn should_poll_increased_memory_thread() {
         Err(e) => panic!("Error polling stats! {:?}", e),
     };
     let start_memo = stats.memory;
-    println!("STATS");
-    println!("{:?}", stats);
 
     while n < 1000000 {
         v.push(255);
@@ -105,9 +105,6 @@ fn should_poll_increased_memory_thread() {
         Err(e) => panic!("Error polling stats! {:?}", e),
     };
     let end_memo = stats.memory;
-
-    println!("STATS");
-    println!("{:?}", stats);
 
     assert!(start_memo < end_memo);
 }

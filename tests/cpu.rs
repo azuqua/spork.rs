@@ -83,7 +83,7 @@ fn should_get_linux_process_stats_fib_25() {
 
     sleep_ms!(wait);
     // kick the cpu a bit
-    fib(28);
+    fib(25);
 
     let stats = match spork.stats(StatType::Process) {
         Ok(s) => s,
@@ -93,7 +93,6 @@ fn should_get_linux_process_stats_fib_25() {
 
     println!("{:?}", stats);
     assert!(stats.cpu > expected_cpu);
-    assert!(stats.memory > 0);
     assert!(stats.duration >= wait);
     assert!(stats.duration <= _final - before);
     assert_eq!(stats.cores, 1);
@@ -124,7 +123,6 @@ fn should_get_linux_thread_stats_fib_35() {
 
     println!("{:?}", stats);
     assert!(stats.cpu > expected_cpu);
-    assert!(stats.memory > 0);
     assert!(stats.duration >= wait);
     assert!(stats.duration <= _final - before);
     assert_eq!(stats.cores, 1);
@@ -155,7 +153,6 @@ fn should_get_low_cpu_linux_thread_stats() {
 
     println!("{:?}", stats);
     assert!(stats.cpu < expected_cpu);
-    assert!(stats.memory > 0);
     assert!(stats.duration >= wait);
     assert!(stats.duration <= _final - before);
     assert_eq!(stats.cores, 1);
@@ -218,7 +215,6 @@ fn should_get_linux_thread_stats_with_cpus() {
 
     println!("{:?}", stats);
     assert!(stats.cpu > expected_cpu);
-    assert!(stats.memory > 0);
     assert!(stats.duration >= wait);
     assert!(stats.duration <= _final - before);
     assert_eq!(stats.cores, spork.num_cores());

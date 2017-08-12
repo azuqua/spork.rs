@@ -78,6 +78,7 @@ pub fn get_mem_stats(kind: &StatType) -> Result<PROCESS_MEMORY_COUNTERS, SporkEr
     }
 }
 
+#[derive(Debug)]
 pub struct WindowsCpuStats {
     creation: u64,
     exit: u64,
@@ -149,9 +150,10 @@ pub fn get_cpu_times(kind: &StatType) -> Result<WindowsCpuStats, SporkError> {
 
 
 pub fn get_cpu_percent(hz: u64, duration: u64, val: &WindowsCpuStats) -> f64 {
+    // Kernal/User time here are in 100ns units. Divide by 10,000,000 to convert
     let times = CpuTime {
-        sec: (val.kernel + val.user) as u64,
-        usec: 1 as u64,
+        sec: (val.kernel / 10000000 + val.user / 10000000) as u64,
+        usec: (val.kernel % 10000000 / 10 + val.user % 10000000 / 10) as u64,
     };
 
     utils::calc_cpu_percent(duration, hz, &times)
