@@ -33,7 +33,7 @@ branches:
 script:
   - |
       travis-cargo build &&
-      travis-cargo test --lib &&
+      travis-cargo test -- --lib &&
       travis-cargo --only stable doc
 before_script:
   - |
