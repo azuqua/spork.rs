@@ -421,11 +421,27 @@ impl Spork {
     ///   stats.cpu, stats.memory, stats.cores, stats.kind, stats.polled);
     /// ```
     #[cfg(windows)]
-    pub fn stats(&self, kind: StatType) -> Result<Stats, Error> {
+    pub fn stats(&self, kind: StatType) -> Result<Stats, SporkError> {
+        let now = utils::now_ms();
+        let duration = utils::calc_duration(&kind, &self.history, self.started, now);
+
         let cpu_times = try!(windows::get_cpu_times(&kind));
         let mem = try!(windows::get_mem_stats(&kind));
 
-        unimplemented!();
+        let cpu = windows::get_cpu_percent(self.clock, duration, &cpu_times);
+
+        let stats = Stats {
+            kind: kind.clone(),
+            polled: now,
+            duration: duration,
+            cpu: cpu,
+            memory: (mem.PeakWorkingSetSize as u64) / 1024,
+            uptime: utils::safe_unsigned_sub(now, self.started),
+            cores: 1,
+        };
+
+        self.history.set_last(&kind, stats.clone());
+        Ok(stats)
     }
 
     /// Get CPU and memory statistics in a `Stats` instance for the provided `StatType` assuming usage across `count` CPU core(s).
@@ -447,7 +463,38 @@ impl Spork {
     /// ```
     #[cfg(windows)]
     pub fn stats_with_cpus(&self, kind: StatType, cores: Option<usize>) -> Result<Stats, SporkError> {
-        unimplemented!();
+        let cores = match cores {
+            Some(c) => c,
+            None => self.cpus,
+        };
+
+        if cores > self.cpus {
+            return Err(SporkError::new_borrowed(
+                SporkErrorKind::Unknown,
+                "Invalid CPU count.",
+            ));
+        }
+        let freq = utils::scale_freq_by_cores(self.clock, cores);
+        let now = utils::now_ms();
+        let duration = utils::calc_duration(&kind, &self.history, self.started, now);
+
+        let cpu_times = try!(windows::get_cpu_times(&kind));
+        let mem = try!(windows::get_mem_stats(&kind));
+
+        let cpu = windows::get_cpu_percent(freq, duration, &cpu_times);
+
+        let stats = Stats {
+            kind: kind.clone(),
+            polled: now,
+            duration: duration,
+            cpu: cpu,
+            memory: (mem.PeakWorkingSetSize as u64) / 1024,
+            uptime: utils::safe_unsigned_sub(now, self.started),
+            cores: cores,
+        };
+
+        self.history.set_last(&kind, stats.clone());
+        Ok(stats)
     }
 
     /// Get CPU and memory statistics in a `Stats` instance for the provided `StatType` assuming usage across only 1 CPU core.

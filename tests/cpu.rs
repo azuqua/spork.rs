@@ -71,7 +71,6 @@ fn should_poll_full_cpu() {
 }
 
 #[test]
-//#[cfg(unix)]
 fn should_get_linux_process_stats_fib_25() {
     // intentionally introduce some delays to simulate some weird contention for the clocks among
     // testing threads in order to hopefully draw out any bugs scoping the results between threads
@@ -83,7 +82,7 @@ fn should_get_linux_process_stats_fib_25() {
 
     sleep_ms!(wait);
     // kick the cpu a bit
-    fib(30);
+    fib(25);
 
     let stats = match spork.stats(StatType::Process) {
         Ok(s) => s,
@@ -93,7 +92,6 @@ fn should_get_linux_process_stats_fib_25() {
 
     println!("{:?}", stats);
     assert!(stats.cpu > expected_cpu);
-    assert!(stats.memory > 0);
     assert!(stats.duration >= wait);
     assert!(stats.duration <= _final - before);
     assert_eq!(stats.cores, 1);
@@ -104,7 +102,6 @@ fn should_get_linux_process_stats_fib_25() {
 }
 
 #[test]
-//#[cfg(unix)]
 fn should_get_linux_thread_stats_fib_35() {
     let wait = rand_in_range(100, 400);
     let expected_cpu = 10_f64;
@@ -124,7 +121,6 @@ fn should_get_linux_thread_stats_fib_35() {
 
     println!("{:?}", stats);
     assert!(stats.cpu > expected_cpu);
-    assert!(stats.memory > 0);
     assert!(stats.duration >= wait);
     assert!(stats.duration <= _final - before);
     assert_eq!(stats.cores, 1);
@@ -135,9 +131,7 @@ fn should_get_linux_thread_stats_fib_35() {
 }
 
 
-// TODO: REMOVE
 #[test]
-//#[cfg(unix)]
 fn should_get_low_cpu_linux_thread_stats() {
     let wait = rand_in_range(4000, 6000);
     let expected_cpu = 1.5_f64;
@@ -155,7 +149,6 @@ fn should_get_low_cpu_linux_thread_stats() {
 
     println!("{:?}", stats);
     assert!(stats.cpu < expected_cpu);
-    assert!(stats.memory > 0);
     assert!(stats.duration >= wait);
     assert!(stats.duration <= _final - before);
     assert_eq!(stats.cores, 1);
@@ -165,9 +158,7 @@ fn should_get_low_cpu_linux_thread_stats() {
     assert!(stats.polled <= _final as i64);
 }
 
-// TODO: REMOVE
 #[test]
-//#[cfg(unix)]
 fn should_get_linux_process_stats_with_cpus() {
     let wait = rand_in_range(100, 400);
     let expected_cpu = 5_f64;
@@ -198,7 +189,6 @@ fn should_get_linux_process_stats_with_cpus() {
 }
 
 #[test]
-//#[cfg(unix)]
 fn should_get_linux_thread_stats_with_cpus() {
     let wait = rand_in_range(100, 400);
     let expected_cpu = 5_f64;
@@ -218,7 +208,6 @@ fn should_get_linux_thread_stats_with_cpus() {
 
     println!("{:?}", stats);
     assert!(stats.cpu > expected_cpu);
-    assert!(stats.memory > 0);
     assert!(stats.duration >= wait);
     assert!(stats.duration <= _final - before);
     assert_eq!(stats.cores, spork.num_cores());
