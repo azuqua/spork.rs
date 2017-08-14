@@ -2,7 +2,6 @@
 use std;
 
 use winapi;
-use winapi::*;
 use kernel32;
 use winapi::psapi::PROCESS_MEMORY_COUNTERS;
 
@@ -50,9 +49,9 @@ pub fn get_mem_stats(kind: &StatType) -> Result<PROCESS_MEMORY_COUNTERS, SporkEr
 
     match *kind {
         StatType::Process => {
-            let mut handle = get_current_process();
+            let handle = get_current_process();
             let mut memory = empty_proc_mem_counters();
-            let mut cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
+            let cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
 
             unsafe {
                 kernel32::K32GetProcessMemoryInfo(handle, &mut memory, cb);
@@ -61,9 +60,9 @@ pub fn get_mem_stats(kind: &StatType) -> Result<PROCESS_MEMORY_COUNTERS, SporkEr
             Ok(memory)
         }
         StatType::Thread => {
-            let mut handle = get_thread_handle();
+            let handle = get_thread_handle();
             let mut memory = empty_proc_mem_counters();
-            let mut cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
+            let cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
 
             unsafe {
                 kernel32::K32GetProcessMemoryInfo(handle, &mut memory, cb);
@@ -90,60 +89,57 @@ pub fn get_cpu_times(kind: &StatType) -> Result<WindowsCpuStats, SporkError> {
 
     match *kind {
         StatType::Process => {
-            let mut handle = get_current_process();
-            let mut lpCreationTime = empty_filetime();
-            let mut lpExitTime = empty_filetime();
-            let mut lpKernelTime = empty_filetime();
-            let mut lpUserTime = empty_filetime();
+            let handle = get_current_process();
+            let mut lp_creation_time = empty_filetime();
+            let mut lp_exit_time = empty_filetime();
+            let mut lp_kernal_time = empty_filetime();
+            let mut lp_user_time = empty_filetime();
 
             unsafe {
                 kernel32::GetProcessTimes(
                     handle,
-                    &mut lpCreationTime,
-                    &mut lpExitTime,
-                    &mut lpKernelTime,
-                    &mut lpUserTime,
+                    &mut lp_creation_time,
+                    &mut lp_exit_time,
+                    &mut lp_kernal_time,
+                    &mut lp_user_time,
                 );
             };
 
             Ok(WindowsCpuStats {
-                creation: wtf(lpCreationTime),
-                exit: wtf(lpExitTime),
-                kernel: wtf(lpKernelTime),
-                user: wtf(lpUserTime),
+                creation: wtf(lp_creation_time),
+                exit: wtf(lp_exit_time),
+                kernel: wtf(lp_kernal_time),
+                user: wtf(lp_user_time),
             })
         }
         StatType::Thread => {
-            let mut handle = get_thread_handle();
-            let mut lpCreationTime = empty_filetime();
-            let mut lpExitTime = empty_filetime();
-            let mut lpKernelTime = empty_filetime();
-            let mut lpUserTime = empty_filetime();
+            let handle = get_thread_handle();
+            let mut lp_creation_time = empty_filetime();
+            let mut lp_exit_time = empty_filetime();
+            let mut lp_kernal_time = empty_filetime();
+            let mut lp_user_time = empty_filetime();
 
             unsafe {
                 kernel32::GetThreadTimes(
                     handle,
-                    &mut lpCreationTime,
-                    &mut lpExitTime,
-                    &mut lpKernelTime,
-                    &mut lpUserTime,
+                    &mut lp_creation_time,
+                    &mut lp_exit_time,
+                    &mut lp_kernal_time,
+                    &mut lp_user_time,
                 );
             };
 
             Ok(WindowsCpuStats {
-                creation: wtf(lpCreationTime),
-                exit: wtf(lpExitTime),
-                kernel: wtf(lpKernelTime),
-                user: wtf(lpUserTime),
+                creation: wtf(lp_creation_time),
+                exit: wtf(lp_exit_time),
+                kernel: wtf(lp_kernal_time),
+                user: wtf(lp_user_time),
             })
         }
-        StatType::Children => {
-            // TODO
-            Err(SporkError::new(
-                SporkErrorKind::Unimplemented,
-                "Windows child thread CPU time stat is not yet implemented!".to_owned(),
-            ))
-        }
+        StatType::Children => Err(SporkError::new(
+            SporkErrorKind::Unimplemented,
+            "Windows child thread memory stat not yet implemented!".to_owned(),
+        )),
     }
 
 }
@@ -159,6 +155,72 @@ pub fn get_cpu_percent(hz: u64, duration: u64, val: &WindowsCpuStats) -> f64 {
     utils::calc_cpu_percent(duration, hz, &times)
 }
 
-pub fn get_clock_ticks() -> Result<i64, SporkError> {
-    unimplemented!();
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_get_empty_file_time() {
+        let times = empty_filetime();
+        assert_eq!(times.dwLowDateTime, 0);
+        assert_eq!(times.dwHighDateTime, 0);
+    }
+
+    #[test]
+    fn should_poll_cpu_process_stats() {
+        let kind = StatType::Process;
+        let usage = get_cpu_times(&kind);
+        assert!(usage.is_ok())
+    }
+
+    #[test]
+    fn should_poll_cpu_memory_stats() {
+        let kind = StatType::Process;
+        let usage = get_mem_stats(&kind);
+        assert!(usage.is_ok())
+    }
+
+    #[test]
+    fn should_poll_thread_process_stats() {
+        let kind = StatType::Thread;
+        let usage = get_cpu_times(&kind);
+        assert!(usage.is_ok())
+    }
+
+    #[test]
+    fn should_poll_thread_memory_stats() {
+        let kind = StatType::Thread;
+        let usage = get_mem_stats(&kind);
+        assert!(usage.is_ok())
+    }
+
+    #[test]
+    fn should_poll_child_cpu_stats() {
+        let kind = StatType::Children;
+        let usage = get_cpu_times(&kind);
+        match usage {
+            Ok(_) => panic!("Should of returned spork error"),
+            Err(err) => {
+                match err.kind {
+                    SporkErrorKind::Unimplemented => assert!(true),
+                    _ => panic!("Wrong error returnd from child process stats failure")
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn should_poll_child_memory_stats() {
+        let kind = StatType::Children;
+        let usage = get_mem_stats(&kind);
+        match usage {
+            Ok(_) => panic!("Should of returned spork error"),
+            Err(err) => {
+                match err.kind {
+                    SporkErrorKind::Unimplemented => assert!(true),
+                    _ => panic!("Wrong error returnd from child process stats failure")
+                }
+            }
+        }
+    }
 }
