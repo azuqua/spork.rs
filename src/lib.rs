@@ -1,7 +1,18 @@
 //! # Spork
-//!
 //! A cross-platform module for measuring CPU and memory usage for processes, threads, and children threads.
 //! This module currently supports Linux, Windows, and OS X.
+//!
+//! A few notes first. 
+//!
+//! ## Windows
+//! * As of right now, Windows support for child process information is currently unimplemented until a solution is found. 
+//! * Also, when polling for `StatType::Thread` the memory usage will be 0. See Spork struct documenation for details
+//!
+//! ## OSX
+//! * When polling for `StatType::Thread`, memory usage reported will be different than Linux, See Spork struct documenation for details
+//!
+//! ## Linux
+//! * No abnormalitites to note
 //!
 //! ## Basic Usage
 //!
@@ -154,6 +165,8 @@ impl From<IoError> for SporkError {
 /// for more information, and on Windows see
 /// [GetProcessMemoryInfo](https://msdn.microsoft.com/en-us/library/windows/desktop/ms683219(v=vs.85).aspx) and
 /// [GetProcessTimes](https://msdn.microsoft.com/en-us/library/windows/desktop/ms683223(v=vs.85).aspx).
+/// For more information about OSX Thread usage stats see:
+/// [TaskBasicInfo](http://web.mit.edu/darwin/src/modules/xnu/osfmk/man/task_basic_info.html)
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StatType {
     /// Read usage across the entire process.
@@ -220,6 +233,14 @@ impl Stats {
 /// called in _either_ thread. Make sure your program accounts for this by using the correct `StatType` such that
 /// multiple threads do not interfere with each other's intended sample rates. Using `stat` and `stat_with_cpus` with
 /// `StatType::Thread` across multiple concurrent threads will correctly measure the results for each thread individually.
+///
+/// ## OSX
+/// As noted above the memory statistic on OSX is slightly different than in Unix. Memory for OSX
+/// returns the number of resident pages for the task
+///
+/// ## Windows
+/// As noted above, the memory stat for windows returns 0 on StatType::Thread. This is due to (AFAIK) no way to get memory usage for a thread.
+/// Any information about this is gracious accepted
 ///
 /// TLDR: Be careful using `stat` and `stat_with_cpus` with `StatType::Process` across multiple threads running concurrently.
 ///
