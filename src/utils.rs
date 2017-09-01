@@ -157,7 +157,7 @@ pub fn calc_cpu_percent(duration_ms: u64, hz: u64, cpu: &CpuTime) -> f64 {
   let cycles_in_duration = (duration_ms as f64) *  cycles_ms;
   let used_cycles = cpu_time_ms * cycles_ms;
   
-  100_f64 * (used_cycles / cycles_in_duration)
+  used_cycles / cycles_in_duration
 }
 
 pub fn get_cpu_speed() -> Result<u64, Error> {
