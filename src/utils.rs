@@ -149,13 +149,13 @@ pub fn scale_freq_by_cores(hz: u64, cores: usize) -> u64 {
 }
 
 pub fn calc_cpu_percent(duration_ms: u64, hz: u64, cpu: &CpuTime) -> f64 {
-    let cpu_time = (cpu.sec as f64) + (cpu.usec as f64 / 1000000_f64);
-    let cpu_time_ms = cpu_time * 1000_f64;
-    let cycles_ms = (hz as f64) * 1000_f64;
-    let cycles_in_duration = (duration_ms as f64) * cycles_ms;
-    let used_cycles = cpu_time_ms * cycles_ms;
-
-    100_f64 * (used_cycles / cycles_in_duration)
+  let cpu_time = (cpu.sec as f64) + (cpu.usec as f64 / 1000000_f64);
+  let cpu_time_ms = cpu_time * 1000_f64;
+  let cycles_ms = (hz as f64) * 1000_f64;
+  let cycles_in_duration = (duration_ms as f64) *  cycles_ms;
+  let used_cycles = cpu_time_ms * cycles_ms;
+  
+  used_cycles / cycles_in_duration
 }
 
 pub fn get_cpu_speed() -> Result<u64, SporkError> {
