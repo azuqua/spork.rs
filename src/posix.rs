@@ -104,13 +104,13 @@ pub fn get_stats(kind: &StatType) -> Result<rusage, SporkError> {
     Ok(usage)
 }
 
-pub fn get_cpu_percent(hz: u64, duration: u64, val: &rusage) -> f64 {
+pub fn get_cpu_time(val: &rusage) -> f64 {
     let times = CpuTime {
         sec: (val.ru_stime.tv_sec + val.ru_utime.tv_sec).wrapping_abs() as u64,
         usec: (val.ru_stime.tv_usec + val.ru_utime.tv_usec).wrapping_abs() as u64,
     };
 
-    utils::calc_cpu_percent(duration, hz, &times)
+    (times.sec as f64) + (times.usec as f64 / 1000000_f64)
 }
 
 // -----------------------------------------

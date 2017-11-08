@@ -194,6 +194,8 @@ pub struct Stats {
     pub polled: i64,
     /// Duration over which CPU usage was calculated, in milliseconds.
     pub duration: u64,
+    /// Total CPU time spent on application.
+    pub cpu_time: f64,
     /// Average CPU load (percentage) since the last poll.
     pub cpu: f64,
     /// Total working set size, in bytes. This can mean different things depending on the `StatType` used.
@@ -212,6 +214,7 @@ impl Stats {
             kind: kind,
             polled: 0,
             duration: 0,
+            cpu_time: 0_f64,
             cpu: 0_f64,
             memory: 0,
             uptime: 0,
@@ -281,13 +284,15 @@ impl Spork {
         let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
         let usage = try!(posix::get_stats(&kind));
-        let cpu = posix::get_cpu_percent(self.clock, duration, &usage);
+        let cpu_time = posix::get_cpu_time(&usage);
+        let cpu_percent = utils::calc_cpu_percent(&self.history, &kind, cpu_time, duration);
 
         let stats = Stats {
             kind: kind.clone(),
             polled: now,
             duration: duration,
-            cpu: cpu,
+            cpu_time: cpu_time,
+            cpu: cpu_percent,
             memory: (usage.ru_maxrss as u64) * 1000,
             uptime: utils::safe_unsigned_sub(now, self.started),
             cores: 1,
@@ -312,13 +317,15 @@ impl Spork {
         let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
         let usage = try!(darwin::get_stats(&kind));
-        let cpu = darwin::get_cpu_percent(self.clock, duration, &usage);
+        let cpu_time = darwin::get_cpu_time(&usage);
+        let cpu_percent = utils::calc_cpu_percent(&self.history, &kind, cpu_time, duration);
 
         let stats = Stats {
             kind: kind.clone(),
             polled: now,
             duration: duration,
-            cpu: cpu,
+            cpu_time: cpu_time,
+            cpu: cpu_percent,
             memory: (usage.ru_maxrss as u64) * 1000,
             uptime: utils::safe_unsigned_sub(now, self.started),
             cores: 1,
@@ -359,18 +366,19 @@ impl Spork {
             ));
         }
 
-        let freq = utils::scale_freq_by_cores(self.clock, cores);
         let now = utils::now_ms();
         let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
         let usage = try!(posix::get_stats(&kind));
-        let cpu = posix::get_cpu_percent(freq, duration, &usage);
+        let cpu_time = posix::get_cpu_time(&usage);
+        let cpu_percent = utils::calc_cpu_percent(&self.history, &kind, cpu_time, duration);
 
         let stats = Stats {
             kind: kind.clone(),
             polled: now,
             duration: duration,
-            cpu: cpu,
+            cpu_time: cpu_time,
+            cpu: cpu_percent,
             memory: (usage.ru_maxrss as u64) * 1000,
             uptime: utils::safe_unsigned_sub(now, self.started),
             cores: cores,
@@ -411,18 +419,19 @@ impl Spork {
             ));
         }
 
-        let freq = utils::scale_freq_by_cores(self.clock, cores);
         let now = utils::now_ms();
         let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
         let usage = try!(darwin::get_stats(&kind));
-        let cpu = darwin::get_cpu_percent(freq, duration, &usage);
+        let cpu_time = darwin::get_cpu_time(&usage);
+        let cpu_percent = utils::calc_cpu_percent(&self.history, &kind, cpu_time, duration);
 
         let stats = Stats {
             kind: kind.clone(),
             polled: now,
             duration: duration,
-            cpu: cpu,
+            cpu_time: cpu_time,
+            cpu: cpu_percent,
             memory: (usage.ru_maxrss as u64) * 1000,
             uptime: utils::safe_unsigned_sub(now, self.started),
             cores: cores,

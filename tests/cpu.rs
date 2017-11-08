@@ -75,7 +75,7 @@ fn should_get_linux_process_stats_fib_25() {
     // intentionally introduce some delays to simulate some weird contention for the clocks among
     // testing threads in order to hopefully draw out any bugs scoping the results between threads
     let wait = rand_in_range(100, 400);
-    let expected_cpu = 8_f64;
+    let expected_cpu = 1_f64;
 
     let before = now_ms() as u64;
     let spork = Spork::new().unwrap();
@@ -160,7 +160,7 @@ fn should_get_low_cpu_linux_thread_stats() {
 
 #[test]
 fn should_get_linux_process_stats_with_cpus() {
-    let wait = rand_in_range(100, 400);
+    let wait = 1500;
     let expected_cpu = 5_f64;
 
     let before = now_ms() as u64;
@@ -168,7 +168,7 @@ fn should_get_linux_process_stats_with_cpus() {
 
     sleep_ms!(wait);
     // kick the cpu a bit
-    fib(25);
+    fib(35);
 
     let stats = match spork.stats_with_cpus(StatType::Process, Some(spork.num_cores())) {
         Ok(s) => s,
@@ -215,6 +215,54 @@ fn should_get_linux_thread_stats_with_cpus() {
     assert!(stats.uptime >= wait);
     assert!(stats.uptime <= _final - before);
     assert!(stats.polled <= _final as i64);
+}
+
+#[test]
+fn should_always_have_increasing_cpu_times() {
+    let wait = 1005;
+
+    let spork = Spork::new().unwrap();
+
+    sleep_ms!(wait);
+
+    let mut prev_times = vec!();
+    for x in 0..10 {
+      let stats = match spork.stats(StatType::Process) {
+          Ok(s) => s,
+          Err(e) => panic!("Stats error {:?}", e),
+      };
+      prev_times.push(stats.cpu_time);
+    }
+
+    let mut prev_time: f64 = 0_f64;
+    for time in &prev_times {
+      assert!(time >= &prev_time);
+      prev_time = *time;
+    }
+}
+
+#[test]
+fn should_always_have_increasing_cpus_times() {
+    let wait = 1005;
+
+    let spork = Spork::new().unwrap();
+
+    sleep_ms!(wait);
+
+    let mut prev_times = vec!();
+    for x in 0..10 {
+      let stats = match spork.stats_with_cpus(StatType::Process, Some(spork.num_cores())) {
+          Ok(s) => s,
+          Err(e) => panic!("Stats error {:?}", e),
+      };
+      prev_times.push(stats.cpu_time);
+    }
+
+    let mut prev_time: f64 = 0_f64;
+    for time in &prev_times {
+      assert!(time >= &prev_time);
+      prev_time = *time;
+    }
 }
 
 #[test]

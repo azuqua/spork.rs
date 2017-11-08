@@ -144,18 +144,13 @@ pub fn get_platform() -> Result<Platform, SporkError> {
     }
 }
 
-pub fn scale_freq_by_cores(hz: u64, cores: usize) -> u64 {
-    hz * (cores as u64)
-}
-
-pub fn calc_cpu_percent(duration_ms: u64, hz: u64, cpu: &CpuTime) -> f64 {
-  let cpu_time = (cpu.sec as f64) + (cpu.usec as f64 / 1000000_f64);
-  let cpu_time_ms = cpu_time * 1000_f64;
-  let cycles_ms = (hz as f64) * 1000_f64;
-  let cycles_in_duration = (duration_ms as f64) *  cycles_ms;
-  let used_cycles = cpu_time_ms * cycles_ms;
-  
-  used_cycles / cycles_in_duration
+pub fn calc_cpu_percent(history: &History, kind: &StatType, curr_cpu_time: f64, duration: u64) -> f64 {
+    let prev_cpu_time = match history.get_last(kind) {
+        Some(stats) => stats.cpu_time,
+        None => 0_f64,
+    };
+    let cpu_time_delta = curr_cpu_time - prev_cpu_time;
+    ((cpu_time_delta / duration as f64) * 1000 as f64) * 100 as f64
 }
 
 pub fn get_cpu_speed() -> Result<u64, SporkError> {
@@ -187,14 +182,6 @@ pub fn empty_timespec() -> timespec {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn should_scale_freq_by_cores() {
-        let cores = 2_usize;
-        let freq = 1000_u64;
-        let expected = 2000_u64;
-        assert_eq!(scale_freq_by_cores(freq, cores), expected);
-    }
 
     #[test]
     fn should_get_thread_id() {
@@ -245,29 +232,6 @@ mod tests {
         };
 
         assert!(cores > 0);
-    }
-
-    #[test]
-    fn should_calc_full_cpu() {
-        let dur = 1000;
-        let hz = 1000000;
-        let time = CpuTime { sec: 1, usec: 0 };
-        let expected = 100_f64;
-
-        assert_eq!(calc_cpu_percent(dur, hz, &time), expected);
-    }
-
-    #[test]
-    fn should_calc_half_cpu() {
-        let dur = 1000;
-        let hz = 1000000;
-        let time = CpuTime {
-            sec: 0,
-            usec: 500000,
-        };
-        let expected = 50_f64;
-
-        assert_eq!(calc_cpu_percent(dur, hz, &time), expected);
     }
 
     #[test]
