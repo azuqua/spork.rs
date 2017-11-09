@@ -7,7 +7,6 @@ use libc::rusage;
 
 use super::*;
 
-use utils;
 use utils::CpuTime;
 use utils::empty_timespec;
 
