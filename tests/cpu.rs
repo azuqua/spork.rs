@@ -226,7 +226,7 @@ fn should_always_have_increasing_cpu_times() {
     sleep_ms!(wait);
 
     let mut prev_times = vec!();
-    for x in 0..10 {
+    for _x in 0..10 {
       let stats = match spork.stats(StatType::Process) {
           Ok(s) => s,
           Err(e) => panic!("Stats error {:?}", e),
@@ -250,7 +250,7 @@ fn should_always_have_increasing_cpus_times() {
     sleep_ms!(wait);
 
     let mut prev_times = vec!();
-    for x in 0..10 {
+    for _x in 0..10 {
       let stats = match spork.stats_with_cpus(StatType::Process, Some(spork.num_cores())) {
           Ok(s) => s,
           Err(e) => panic!("Stats error {:?}", e),

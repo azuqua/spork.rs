@@ -456,15 +456,17 @@ impl Spork {
         let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
         let cpu_times = try!(windows::get_cpu_times(&kind));
+        let cpu_time = windows::combine_cpu_times(&cpu_times);
         let mem = try!(windows::get_mem_stats(&kind));
 
-        let cpu = windows::get_cpu_percent(self.clock, duration, &cpu_times);
+        let cpu_percent = utils::calc_cpu_percent(&self.history, &kind, cpu_time, duration);
 
         let stats = Stats {
             kind: kind.clone(),
             polled: now,
             duration: duration,
-            cpu: cpu,
+            cpu_time: cpu_time,
+            cpu: cpu_percent,
             memory: (mem.PeakWorkingSetSize as u64) / 1024,
             uptime: utils::safe_unsigned_sub(now, self.started),
             cores: 1,
@@ -504,20 +506,21 @@ impl Spork {
                 "Invalid CPU count.",
             ));
         }
-        let freq = utils::scale_freq_by_cores(self.clock, cores);
         let now = utils::now_ms();
         let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
         let cpu_times = try!(windows::get_cpu_times(&kind));
+        let cpu_time = windows::combine_cpu_times(&cpu_times);
         let mem = try!(windows::get_mem_stats(&kind));
 
-        let cpu = windows::get_cpu_percent(freq, duration, &cpu_times);
+        let cpu_percent = utils::calc_cpu_percent(&self.history, &kind, cpu_time, duration);
 
         let stats = Stats {
             kind: kind.clone(),
             polled: now,
             duration: duration,
-            cpu: cpu,
+            cpu_time: cpu_time,
+            cpu: cpu_percent,
             memory: (mem.PeakWorkingSetSize as u64) / 1024,
             uptime: utils::safe_unsigned_sub(now, self.started),
             cores: cores,
