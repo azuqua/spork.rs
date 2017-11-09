@@ -1,3 +1,6 @@
+os:
+  - linux
+  - osx
 language: rust
 sudo: false
 matrix:
@@ -30,12 +33,13 @@ branches:
 script:
   - |
       travis-cargo build &&
-      travis-cargo test &&
+      cargo test --lib &&
       travis-cargo --only stable doc
 before_script:
   - |
     pip install 'travis-cargo<0.2' --user &&
-    export PATH=$HOME/.local/bin:$PATH
+    export PATH=`python -m site --user-base`/bin:$PATH
+    #export PATH=$HOME/.local/bin:$PATH
 after_success:
   - travis-cargo --only stable doc-upload
   - |
