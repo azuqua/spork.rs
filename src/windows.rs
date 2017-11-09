@@ -145,14 +145,14 @@ pub fn get_cpu_times(kind: &StatType) -> Result<WindowsCpuStats, SporkError> {
 }
 
 
-pub fn get_cpu_percent(hz: u64, duration: u64, val: &WindowsCpuStats) -> f64 {
+pub fn combine_cpu_times(val: &WindowsCpuStats) -> f64 {
     // Kernal/User time here are in 100ns units. Divide by 10,000,000 to convert
     let times = CpuTime {
         sec: (val.kernel / 10000000 + val.user / 10000000) as u64,
         usec: (val.kernel % 10000000 / 10 + val.user % 10000000 / 10) as u64,
     };
 
-    utils::calc_cpu_percent(duration, hz, &times)
+    (times.sec as f64) + (times.usec as f64 / 1000000_f64)
 }
 
 #[cfg(test)]
