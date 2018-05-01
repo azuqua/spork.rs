@@ -52,10 +52,10 @@
 //! ```
 
 #[cfg(target_pointer_width = "32")]
-pub type c_long = i32;
+pub type CLong = i32;
 
 #[cfg(target_pointer_width = "64")]
-pub type c_long = i64;
+pub type CLong = i64;
 
 #[cfg(target_os = "macos")]
 extern crate mach;
