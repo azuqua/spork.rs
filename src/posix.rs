@@ -56,7 +56,7 @@ fn map_posix_resp(code: i32) -> Result<i32, SporkError> {
 }
 
 #[allow(dead_code)]
-pub fn get_clock_ticks() -> Result<i64, SporkError> {
+pub fn get_clock_ticks() -> Result<CLong, SporkError> {
     Ok(unsafe { libc::sysconf(libc::_SC_CLK_TCK) })
 }
 

@@ -2,10 +2,10 @@
 //! A cross-platform module for measuring CPU and memory usage for processes, threads, and children threads.
 //! This module currently supports Linux, Windows, and OS X.
 //!
-//! A few notes first. 
+//! A few notes first.
 //!
 //! ## Windows
-//! * As of right now, Windows support for child process information is currently unimplemented until a solution is found. 
+//! * As of right now, Windows support for child process information is currently unimplemented until a solution is found.
 //! * Also, when polling for `StatType::Thread` the memory usage will be 0. See Spork struct documenation for details
 //!
 //! ## OSX
@@ -50,6 +50,12 @@
 //! };
 //! println!("Thread stats: {:?}", t_stats);
 //! ```
+
+#[cfg(target_pointer_width = "32")]
+pub type CLong = i32;
+
+#[cfg(target_pointer_width = "64")]
+pub type CLong = i64;
 
 #[cfg(target_os = "macos")]
 extern crate mach;
@@ -147,7 +153,9 @@ impl From<sys_info::Error> for SporkError {
                 SporkErrorKind::Unimplemented,
                 "Unsupported system.".to_owned(),
             ),
-            sys_info::Error::ExecFailed(s) => SporkError::new(SporkErrorKind::Unknown, s),
+            sys_info::Error::ExecFailed(e) => SporkError::new(SporkErrorKind::Unknown, e.to_string()),
+            sys_info::Error::IO(e) => SporkError::new(SporkErrorKind::Unknown, e.to_string()),
+            sys_info::Error::Unknown => SporkError::new(SporkErrorKind::Unknown, "Sys_info encountered an unknown error."),
         }
     }
 }
