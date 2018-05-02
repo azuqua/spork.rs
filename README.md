@@ -77,13 +77,13 @@ let c_stats = spork.stats_with_cpus(StatType::Children, None).unwrap();
 
 # Unsupported Platforms
 
-This module supports POSIX compliant platforms (Linux, OS X, etc) and Windows (soon). If you'd like to use this on an unsupported platform, or one on which you might expect compatibility issues, there are two options available for testing and usage. If you'd prefer to catch any compatibility issues at compile-time just download this library and try to build it. If it builds it should<sup>[TM](https://i.imgur.com/DK5FdPs.jpg)</sup> work, but it's still a good idea to run the test suite before trying it in production. 
+This module supports POSIX compliant platforms (Linux, OS X, etc) and Windows (soon). If you'd like to use this on an unsupported platform, or one on which you might expect compatibility issues, there are two options available for testing and usage. If you'd prefer to catch any compatibility issues at compile-time just download this library and try to build it. If it builds it should work, but it's still a good idea to run the test suite before trying it in production. 
 
 If you'd prefer to handle compatibility errors at runtime add the `compile_unimplemented` feature to your Cargo.toml for Spork. Instead of introducing compiler errors this will compile mock functions which always return `Unimplemented` errors in place of any missing platform-specific ones.
 
 # Tests
 
 ```
-cargo test
+cargo test --lib
 ```
 

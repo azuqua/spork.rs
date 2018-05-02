@@ -1,8 +1,8 @@
 [package]
-authors = ["Alec Embke <aembke@gmail.com>"]
+authors = ["Alec Embke <aembke@gmail.com>", "Colin Gabrielson <novcn@protonmail.ch>", "Holden Stegman"]
 categories = []
 documentation = "http://azuqua.github.io/spork.rs"
-keywords = ["cpu", "memory", "usage"]
+keywords = ["cpu", "memory", "usage", "thread"]
 license = "MIT"
 name = "spork"
 readme = "README.md"
