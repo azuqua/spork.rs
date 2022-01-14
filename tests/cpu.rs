@@ -1,7 +1,6 @@
-
-extern crate spork;
-extern crate rand;
 extern crate chrono;
+extern crate rand;
+extern crate spork;
 
 #[allow(unused_imports)]
 use spork::{Platform, Spork, SporkError, SporkErrorKind, StatType, Stats};
@@ -16,7 +15,7 @@ use chrono::UTC;
 macro_rules! sleep_ms(
   ($($arg:tt)*) => { {
     thread::sleep(time::Duration::from_millis($($arg)*))
-  } } 
+  } }
 );
 
 fn fib(n: u64) -> u64 {
@@ -130,7 +129,6 @@ fn should_get_linux_thread_stats_fib_35() {
     assert!(stats.polled <= _final as i64);
 }
 
-
 #[test]
 fn should_get_low_cpu_linux_thread_stats() {
     let wait = rand_in_range(4000, 6000);
@@ -225,19 +223,19 @@ fn should_always_have_increasing_cpu_times() {
 
     sleep_ms!(wait);
 
-    let mut prev_times = vec!();
+    let mut prev_times = vec![];
     for _x in 0..10 {
-      let stats = match spork.stats(StatType::Process) {
-          Ok(s) => s,
-          Err(e) => panic!("Stats error {:?}", e),
-      };
-      prev_times.push(stats.cpu_time);
+        let stats = match spork.stats(StatType::Process) {
+            Ok(s) => s,
+            Err(e) => panic!("Stats error {:?}", e),
+        };
+        prev_times.push(stats.cpu_time);
     }
 
     let mut prev_time: f64 = 0_f64;
     for time in &prev_times {
-      assert!(time >= &prev_time);
-      prev_time = *time;
+        assert!(time >= &prev_time);
+        prev_time = *time;
     }
 }
 
@@ -249,19 +247,19 @@ fn should_always_have_increasing_cpus_times() {
 
     sleep_ms!(wait);
 
-    let mut prev_times = vec!();
+    let mut prev_times = vec![];
     for _x in 0..10 {
-      let stats = match spork.stats_with_cpus(StatType::Process, Some(spork.num_cores())) {
-          Ok(s) => s,
-          Err(e) => panic!("Stats error {:?}", e),
-      };
-      prev_times.push(stats.cpu_time);
+        let stats = match spork.stats_with_cpus(StatType::Process, Some(spork.num_cores())) {
+            Ok(s) => s,
+            Err(e) => panic!("Stats error {:?}", e),
+        };
+        prev_times.push(stats.cpu_time);
     }
 
     let mut prev_time: f64 = 0_f64;
     for time in &prev_times {
-      assert!(time >= &prev_time);
-      prev_time = *time;
+        assert!(time >= &prev_time);
+        prev_time = *time;
     }
 }
 

@@ -1,21 +1,23 @@
-use mach::task_info::{task_basic_info, task_basic_info_t, task_events_info, task_events_info_t,
-                      task_thread_times_info, task_thread_times_info_t, MIG_ARRAY_TOO_LARGE, TASK_BASIC_INFO,
-                      TASK_BASIC_INFO_COUNT, TASK_EVENTS_INFO, TASK_EVENTS_INFO_COUNT, TASK_THREAD_TIMES_INFO,
-                      TASK_THREAD_TIMES_INFO_COUNT};
 use mach::task::task_info;
-use mach::kern_return::{KERN_INVALID_ARGUMENT, KERN_SUCCESS};
-use mach::traps::mach_task_self;
+use mach::task_info::{
+    task_basic_info, task_basic_info_t, task_thread_times_info, task_thread_times_info_t, MIG_ARRAY_TOO_LARGE,
+    TASK_BASIC_INFO, TASK_BASIC_INFO_COUNT, TASK_THREAD_TIMES_INFO, TASK_THREAD_TIMES_INFO_COUNT,
+};
+
 use mach::time_value::{time_value_add, time_value_t};
 
+use mach::traps::mach_task_self;
+
+use mach::kern_return::{KERN_INVALID_ARGUMENT, KERN_SUCCESS};
+
 use libc;
-use libc::{EFAULT, EINVAL, EPERM, RUSAGE_CHILDREN, RUSAGE_SELF};
+use libc::rusage;
 use libc::timespec;
 use libc::timeval;
-use libc::rusage;
+use libc::{EFAULT, EINVAL, EPERM, RUSAGE_CHILDREN, RUSAGE_SELF};
 
 use super::*;
 
-use utils;
 use utils::CpuTime;
 
 fn map_posix_resp(code: i32) -> Result<i32, SporkError> {
@@ -87,15 +89,8 @@ pub fn get_rusage_from_mach(usage: &mut rusage) -> Result<i32, SporkError> {
     let mut basic_info = task_basic_info::new();
     let basic_info_ptr = (&mut basic_info as task_basic_info_t) as libc::uintptr_t;
     let mut count = TASK_BASIC_INFO_COUNT;
-    try!(map_mach_resp(unsafe {
-        task_info(
-            mach_task_self(),
-            TASK_BASIC_INFO,
-            basic_info_ptr,
-            &mut count,
-        )
-    }));
 
+    map_mach_resp(unsafe { task_info(mach_task_self(), TASK_BASIC_INFO, basic_info_ptr, &mut count) })?;
     usage.ru_maxrss = basic_info.resident_size as i64 / 1024;
     usage.ru_stime = time_value_t_to_timeval(&basic_info.system_time);
 
@@ -107,14 +102,14 @@ pub fn get_thread_cpu_time() -> Result<timespec, SporkError> {
     let mut thread_times = task_thread_times_info::new();
     let thread_times_ptr = (&mut thread_times as task_thread_times_info_t) as libc::uintptr_t;
     let mut thread_times_count = TASK_THREAD_TIMES_INFO_COUNT;
-    let _ = try!(map_mach_resp(unsafe {
+    let _ = map_mach_resp(unsafe {
         task_info(
             mach_task_self(),
             TASK_THREAD_TIMES_INFO,
             thread_times_ptr,
             &mut thread_times_count,
         )
-    }));
+    })?;
 
     // Appears the Linux equivilent to this actually is a compination of CPU and USER times
     // Ok(time_value_t_to_timespec(&(thread_times.user_time)))
@@ -126,17 +121,14 @@ pub fn get_stats(kind: &StatType) -> Result<rusage, SporkError> {
     let (t_times, code): (Option<timespec>, Option<i32>) = match *kind {
         StatType::Process => (None, Some(RUSAGE_SELF)),
         StatType::Children => (None, Some(RUSAGE_CHILDREN)),
-        StatType::Thread => (Some(try!(get_thread_cpu_time())), None),
+        StatType::Thread => (Some(get_thread_cpu_time()?), None),
     };
-
 
     let mut usage = unsafe { std::mem::MaybeUninit::zeroed().assume_init() };
     if let Some(r_code) = code {
-        let _ = try!(map_posix_resp(
-            unsafe { libc::getrusage(r_code, &mut usage) }
-        ));
+        let _ = map_posix_resp(unsafe { libc::getrusage(r_code, &mut usage) })?;
     } else {
-        let _ = try!(get_rusage_from_mach(&mut usage));
+        let _ = get_rusage_from_mach(&mut usage)?;
     }
 
     if t_times.is_some() {
@@ -175,11 +167,7 @@ mod tests {
     }
 
     fn format_timeval(val: &timeval) -> String {
-        format!(
-            "timeval {{ tv_sec: {:?}, tv_usec: {:?} }}",
-            val.tv_sec,
-            val.tv_usec
-        )
+        format!("timeval {{ tv_sec: {:?}, tv_usec: {:?} }}", val.tv_sec, val.tv_usec)
     }
 
     #[allow(dead_code)]
@@ -277,5 +265,4 @@ mod tests {
         assert!(times.tv_sec >= 0);
         assert!(times.tv_nsec >= 0);
     }
-
 }

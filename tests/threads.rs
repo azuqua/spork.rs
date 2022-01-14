@@ -5,14 +5,14 @@ use spork::{Platform, Spork, SporkError, SporkErrorKind, StatType, Stats};
 
 use std::time;
 
-use std::thread;
-use std::sync::mpsc::{Receiver, Sender};
 use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
+use std::thread;
 
 macro_rules! sleep_ms(
   ($($arg:tt)*) => { {
     thread::sleep(time::Duration::from_millis($($arg)*))
-  } } 
+  } }
 );
 
 fn fib(n: u64) -> u64 {
@@ -46,7 +46,6 @@ fn should_correctly_poll_2_threads_separately() {
         };
         tx_expensive.send(stats.cpu).unwrap();
     });
-
 
     let (tx_simple, rx_simple): (Sender<f64>, Receiver<f64>) = mpsc::channel();
     thread::spawn(move || {
@@ -94,7 +93,6 @@ fn should_correctly_poll_10_threads_separately() {
                 };
                 tx_expensive.send(stats.cpu).unwrap();
             });
-
 
             let (tx_simple, rx_simple): (Sender<f64>, Receiver<f64>) = mpsc::channel();
             thread::spawn(move || {

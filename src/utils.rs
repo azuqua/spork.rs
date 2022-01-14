@@ -1,14 +1,13 @@
-
-use sys_info;
 use chrono::UTC;
+use sys_info;
 use thread_id;
 
 use libc::timespec;
 
-use std::collections::HashMap;
-use std::cell::RefCell;
-use std::ops::{Deref, DerefMut};
 use std::borrow::BorrowMut;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 
 use super::*;
 
@@ -48,19 +47,19 @@ impl History {
         match *kind {
             StatType::Process => {
                 let mut process = self.process.borrow_mut();
-                let mut process_ref = process.deref_mut();
+                let process_ref = process.deref_mut();
 
                 *process_ref = Some(poll);
             }
             StatType::Thread => {
                 let mut threads = self.thread.borrow_mut();
-                let mut threads_ref = threads.borrow_mut();
+                let threads_ref = threads.borrow_mut();
 
                 threads_ref.insert(get_thread_id(), poll);
             }
             StatType::Children => {
                 let mut children = self.children.borrow_mut();
-                let mut children_ref = children.borrow_mut();
+                let children_ref = children.borrow_mut();
 
                 children_ref.insert(get_thread_id(), poll);
             }
@@ -95,19 +94,19 @@ impl History {
         match *kind {
             StatType::Process => {
                 let mut process = self.process.borrow_mut();
-                let mut process_ref = process.deref_mut();
+                let process_ref = process.deref_mut();
 
                 *process_ref = None;
             }
             StatType::Thread => {
                 let mut threads = self.thread.borrow_mut();
-                let mut threads_ref = threads.borrow_mut();
+                let threads_ref = threads.borrow_mut();
 
                 threads_ref.remove(&get_thread_id());
             }
             StatType::Children => {
                 let mut children = self.children.borrow_mut();
-                let mut children_ref = children.borrow_mut();
+                let children_ref = children.borrow_mut();
 
                 children_ref.remove(&get_thread_id());
             }
@@ -136,7 +135,7 @@ pub fn now_ms() -> i64 {
 }
 
 pub fn get_platform() -> Result<Platform, SporkError> {
-    match try!(sys_info::os_type()).as_ref() {
+    match sys_info::os_type()?.as_ref() {
         "Linux" => Ok(Platform::Linux),
         "Windows" => Ok(Platform::Windows),
         "Darwin" => Ok(Platform::MacOS),
@@ -170,12 +169,8 @@ pub fn get_num_cores() -> Result<usize, SporkError> {
 // Not actually dead - but cargo thinks it is (Used in tests)
 #[allow(dead_code)]
 pub fn empty_timespec() -> timespec {
-    timespec {
-        tv_sec: 0,
-        tv_nsec: 0,
-    }
+    timespec { tv_sec: 0, tv_nsec: 0 }
 }
-
 
 // ---------------------------
 
@@ -409,5 +404,4 @@ mod tests {
         let now = now_ms();
         assert!(now > 0);
     }
-
 }
