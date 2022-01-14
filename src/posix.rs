@@ -10,33 +10,6 @@ use super::*;
 use utils::CpuTime;
 use utils::empty_timespec;
 
-fn empty_rusage() -> rusage {
-    libc::rusage {
-        ru_utime: timeval {
-            tv_sec: 0,
-            tv_usec: 0,
-        },
-        ru_stime: timeval {
-            tv_sec: 0,
-            tv_usec: 0,
-        },
-        ru_maxrss: 0,
-        ru_ixrss: 0,
-        ru_idrss: 0,
-        ru_isrss: 0,
-        ru_minflt: 0,
-        ru_majflt: 0,
-        ru_nswap: 0,
-        ru_inblock: 0,
-        ru_oublock: 0,
-        ru_msgsnd: 0,
-        ru_msgrcv: 0,
-        ru_nsignals: 0,
-        ru_nvcsw: 0,
-        ru_nivcsw: 0,
-    }
-}
-
 fn map_posix_resp(code: i32) -> Result<i32, SporkError> {
     match code {
         EFAULT => Err(SporkError::new_borrowed(
@@ -92,8 +65,12 @@ pub fn get_stats(kind: &StatType) -> Result<rusage, SporkError> {
         StatType::Thread => (Some(try!(get_thread_cpu_time())), RUSAGE_THREAD),
     };
 
-    let mut usage = empty_rusage();
-    let _ = try!(map_posix_resp(unsafe { libc::getrusage(code, &mut usage) }));
+    let (getrusage_ret, mut usage) = unsafe {
+        let mut usage = std::mem::MaybeUninit::zeroed().assume_init();
+        (libc::getrusage(code, &mut usage), usage)
+    };
+
+    let _ = try!(map_posix_resp(getrusage_ret));
 
     if t_times.is_some() {
         // use clock_gettime results for threads
@@ -182,12 +159,6 @@ mod tests {
         let cpu = timespec_to_cpu_time(&times);
         assert_eq!(times.tv_sec as u64, cpu.sec);
         assert_eq!(times.tv_nsec as u64, cpu.usec * 1000);
-    }
-
-    #[test]
-    fn should_get_empty_rusage() {
-        let usage = empty_rusage();
-        assert_eq!(usage.ru_maxrss, 0);
     }
 
     #[test]
