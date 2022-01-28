@@ -1,41 +1,13 @@
-
 use libc;
-use libc::{CLOCK_THREAD_CPUTIME_ID, EFAULT, EINVAL, EPERM, RUSAGE_CHILDREN, RUSAGE_SELF, RUSAGE_THREAD};
+use libc::rusage;
 use libc::timespec;
 use libc::timeval;
-use libc::rusage;
+use libc::{CLOCK_THREAD_CPUTIME_ID, EFAULT, EINVAL, EPERM, RUSAGE_CHILDREN, RUSAGE_SELF, RUSAGE_THREAD};
 
 use super::*;
 
-use utils::CpuTime;
 use utils::empty_timespec;
-
-fn empty_rusage() -> rusage {
-    libc::rusage {
-        ru_utime: timeval {
-            tv_sec: 0,
-            tv_usec: 0,
-        },
-        ru_stime: timeval {
-            tv_sec: 0,
-            tv_usec: 0,
-        },
-        ru_maxrss: 0,
-        ru_ixrss: 0,
-        ru_idrss: 0,
-        ru_isrss: 0,
-        ru_minflt: 0,
-        ru_majflt: 0,
-        ru_nswap: 0,
-        ru_inblock: 0,
-        ru_oublock: 0,
-        ru_msgsnd: 0,
-        ru_msgrcv: 0,
-        ru_nsignals: 0,
-        ru_nvcsw: 0,
-        ru_nivcsw: 0,
-    }
-}
+use utils::CpuTime;
 
 fn map_posix_resp(code: i32) -> Result<i32, SporkError> {
     match code {
@@ -43,10 +15,7 @@ fn map_posix_resp(code: i32) -> Result<i32, SporkError> {
             SporkErrorKind::Unknown,
             "Invalid timespec address space.",
         )),
-        EINVAL => Err(SporkError::new_borrowed(
-            SporkErrorKind::Unknown,
-            "Invalid clock ID.",
-        )),
+        EINVAL => Err(SporkError::new_borrowed(SporkErrorKind::Unknown, "Invalid clock ID.")),
         EPERM => Err(SporkError::new_borrowed(
             SporkErrorKind::Unknown,
             "Invalid clock permissions.",
@@ -78,9 +47,7 @@ pub fn timespec_to_timeval(times: &timespec) -> timeval {
 // this should always be called before get_stats since they both consume the clock
 pub fn get_thread_cpu_time() -> Result<timespec, SporkError> {
     let mut times = empty_timespec();
-    let _ = try!(map_posix_resp(unsafe {
-        libc::clock_gettime(CLOCK_THREAD_CPUTIME_ID, &mut times)
-    }));
+    let _ = map_posix_resp(unsafe { libc::clock_gettime(CLOCK_THREAD_CPUTIME_ID, &mut times) })?;
 
     Ok(times)
 }
@@ -89,11 +56,15 @@ pub fn get_stats(kind: &StatType) -> Result<rusage, SporkError> {
     let (t_times, code): (Option<timespec>, i32) = match *kind {
         StatType::Process => (None, RUSAGE_SELF),
         StatType::Children => (None, RUSAGE_CHILDREN),
-        StatType::Thread => (Some(try!(get_thread_cpu_time())), RUSAGE_THREAD),
+        StatType::Thread => (Some(get_thread_cpu_time()?), RUSAGE_THREAD),
     };
 
-    let mut usage = empty_rusage();
-    let _ = try!(map_posix_resp(unsafe { libc::getrusage(code, &mut usage) }));
+    let (getrusage_ret, mut usage) = unsafe {
+        let mut usage = std::mem::MaybeUninit::zeroed().assume_init();
+        (libc::getrusage(code, &mut usage), usage)
+    };
+
+    let _ = map_posix_resp(getrusage_ret)?;
 
     if t_times.is_some() {
         // use clock_gettime results for threads
@@ -120,11 +91,7 @@ mod tests {
     use utils::empty_timespec;
 
     fn format_timeval(val: &timeval) -> String {
-        format!(
-            "timeval {{ tv_sec: {:?}, tv_usec: {:?} }}",
-            val.tv_sec,
-            val.tv_usec
-        )
+        format!("timeval {{ tv_sec: {:?}, tv_usec: {:?} }}", val.tv_sec, val.tv_usec)
     }
 
     #[allow(dead_code)]
@@ -185,12 +152,6 @@ mod tests {
     }
 
     #[test]
-    fn should_get_empty_rusage() {
-        let usage = empty_rusage();
-        assert_eq!(usage.ru_maxrss, 0);
-    }
-
-    #[test]
     fn should_get_clock_ticks() {
         let ticks = get_clock_ticks().unwrap();
         assert!(ticks > 0);
@@ -228,5 +189,4 @@ mod tests {
         assert!(times.tv_sec >= 0);
         assert!(times.tv_nsec >= 0);
     }
-
 }

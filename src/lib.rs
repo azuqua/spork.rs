@@ -61,12 +61,12 @@ pub type CLong = i64;
 extern crate mach;
 
 extern crate chrono;
-extern crate sys_info;
-extern crate libc;
-extern crate winapi;
 extern crate kernel32;
+extern crate libc;
 extern crate psapi;
+extern crate sys_info;
 extern crate thread_id;
+extern crate winapi;
 
 mod utils;
 
@@ -149,13 +149,14 @@ impl SporkError {
 impl From<sys_info::Error> for SporkError {
     fn from(error: sys_info::Error) -> Self {
         match error {
-            sys_info::Error::UnsupportedSystem => SporkError::new(
-                SporkErrorKind::Unimplemented,
-                "Unsupported system.".to_owned(),
-            ),
+            sys_info::Error::UnsupportedSystem => {
+                SporkError::new(SporkErrorKind::Unimplemented, "Unsupported system.".to_owned())
+            }
             sys_info::Error::ExecFailed(e) => SporkError::new(SporkErrorKind::Unknown, e.to_string()),
             sys_info::Error::IO(e) => SporkError::new(SporkErrorKind::Unknown, e.to_string()),
-            sys_info::Error::Unknown => SporkError::new(SporkErrorKind::Unknown, "Sys_info encountered an unknown error."),
+            sys_info::Error::Unknown => {
+                SporkError::new(SporkErrorKind::Unknown, "Sys_info encountered an unknown error.")
+            }
         }
     }
 }
@@ -231,7 +232,6 @@ impl Stats {
     }
 }
 
-
 /// A struct to monitor CPU and memory usage.
 ///
 /// ### Important Notes:
@@ -270,9 +270,9 @@ impl Spork {
     pub fn new() -> Result<Spork, SporkError> {
         Ok(Spork {
             history: History::default(),
-            platform: try!(utils::get_platform()),
-            clock: try!(utils::get_cpu_speed()),
-            cpus: try!(utils::get_num_cores()),
+            platform: utils::get_platform()?,
+            clock: utils::get_cpu_speed()?,
+            cpus: utils::get_num_cores()?,
             started: utils::now_ms(),
         })
     }
@@ -291,7 +291,7 @@ impl Spork {
         let now = utils::now_ms();
         let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
-        let usage = try!(posix::get_stats(&kind));
+        let usage = posix::get_stats(&kind)?;
         let cpu_time = posix::get_cpu_time(&usage);
         let cpu_percent = utils::calc_cpu_percent(&self.history, &kind, cpu_time, duration);
 
@@ -324,7 +324,7 @@ impl Spork {
         let now = utils::now_ms();
         let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
-        let usage = try!(darwin::get_stats(&kind));
+        let usage = darwin::get_stats(&kind)?;
         let cpu_time = darwin::get_cpu_time(&usage);
         let cpu_percent = utils::calc_cpu_percent(&self.history, &kind, cpu_time, duration);
 
@@ -368,16 +368,13 @@ impl Spork {
         };
 
         if cores > self.cpus {
-            return Err(SporkError::new_borrowed(
-                SporkErrorKind::Unknown,
-                "Invalid CPU count.",
-            ));
+            return Err(SporkError::new_borrowed(SporkErrorKind::Unknown, "Invalid CPU count."));
         }
 
         let now = utils::now_ms();
         let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
-        let usage = try!(posix::get_stats(&kind));
+        let usage = posix::get_stats(&kind)?;
         let cpu_time = posix::get_cpu_time(&usage);
         let cpu_percent = utils::calc_cpu_percent(&self.history, &kind, cpu_time, duration);
 
@@ -421,16 +418,13 @@ impl Spork {
         };
 
         if cores > self.cpus {
-            return Err(SporkError::new_borrowed(
-                SporkErrorKind::Unknown,
-                "Invalid CPU count.",
-            ));
+            return Err(SporkError::new_borrowed(SporkErrorKind::Unknown, "Invalid CPU count."));
         }
 
         let now = utils::now_ms();
         let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
-        let usage = try!(darwin::get_stats(&kind));
+        let usage = darwin::get_stats(&kind)?;
         let cpu_time = darwin::get_cpu_time(&usage);
         let cpu_percent = utils::calc_cpu_percent(&self.history, &kind, cpu_time, duration);
 
@@ -463,9 +457,9 @@ impl Spork {
         let now = utils::now_ms();
         let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
-        let cpu_times = try!(windows::get_cpu_times(&kind));
+        let cpu_times = windows::get_cpu_times(&kind)?;
         let cpu_time = windows::combine_cpu_times(&cpu_times);
-        let mem = try!(windows::get_mem_stats(&kind));
+        let mem = windows::get_mem_stats(&kind)?;
 
         let cpu_percent = utils::calc_cpu_percent(&self.history, &kind, cpu_time, duration);
 
@@ -509,17 +503,14 @@ impl Spork {
         };
 
         if cores > self.cpus {
-            return Err(SporkError::new_borrowed(
-                SporkErrorKind::Unknown,
-                "Invalid CPU count.",
-            ));
+            return Err(SporkError::new_borrowed(SporkErrorKind::Unknown, "Invalid CPU count."));
         }
         let now = utils::now_ms();
         let duration = utils::calc_duration(&kind, &self.history, self.started, now);
 
-        let cpu_times = try!(windows::get_cpu_times(&kind));
+        let cpu_times = windows::get_cpu_times(&kind)?;
         let cpu_time = windows::combine_cpu_times(&cpu_times);
-        let mem = try!(windows::get_mem_stats(&kind));
+        let mem = windows::get_mem_stats(&kind)?;
 
         let cpu_percent = utils::calc_cpu_percent(&self.history, &kind, cpu_time, duration);
 
@@ -659,10 +650,7 @@ mod tests {
             SporkErrorKind::Unimplemented => {
                 assert_eq!(error.details(), "");
             }
-            _ => panic!(
-                "Invalid unimplemented error! {:?}. Expected Unimplemented",
-                error
-            ),
+            _ => panic!("Invalid unimplemented error! {:?}. Expected Unimplemented", error),
         };
     }
 
@@ -673,10 +661,7 @@ mod tests {
             SporkErrorKind::Unimplemented => {
                 assert_eq!(error.details(), "Foo");
             }
-            _ => panic!(
-                "Invalid unimplemented error! {:?}. Expected Unimplemented",
-                error
-            ),
+            _ => panic!("Invalid unimplemented error! {:?}. Expected Unimplemented", error),
         };
     }
 
@@ -688,10 +673,7 @@ mod tests {
             SporkErrorKind::Unimplemented => {
                 assert_eq!(error.details(), "Unsupported system.");
             }
-            _ => panic!(
-                "Invalid unimplemented error! {:?}. Expected Unimplemented",
-                error
-            ),
+            _ => panic!("Invalid unimplemented error! {:?}. Expected Unimplemented", error),
         };
     }
 
@@ -703,10 +685,7 @@ mod tests {
             SporkErrorKind::Unknown => {
                 assert!(true);
             }
-            _ => panic!(
-                "Invalid unimplemented error! {:?}. Expected Unimplemented",
-                error
-            ),
+            _ => panic!("Invalid unimplemented error! {:?}. Expected Unimplemented", error),
         };
     }
 
@@ -773,7 +752,6 @@ mod tests {
         assert_eq!(spork.drop_history(StatType::Children), None);
     }
 
-
     #[test]
     #[cfg(windows)]
     fn should_get_windows_stats_with_cpus() {}
@@ -799,6 +777,4 @@ mod tests {
             panic!("Stat error not thrown on unimplemented platform!");
         }
     }
-
-
 }

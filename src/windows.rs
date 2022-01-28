@@ -1,14 +1,12 @@
-
 use std;
 
-use winapi;
 use kernel32;
+use winapi;
 use winapi::psapi::PROCESS_MEMORY_COUNTERS;
 
 use utils::CpuTime;
 
 use super::*;
-
 
 fn get_thread_handle() -> winapi::HANDLE {
     unsafe { kernel32::GetCurrentThread() }
@@ -46,7 +44,6 @@ fn wtf(f: winapi::minwindef::FILETIME) -> u64 {
 }
 
 pub fn get_mem_stats(kind: &StatType) -> Result<PROCESS_MEMORY_COUNTERS, SporkError> {
-
     match *kind {
         StatType::Process => {
             let handle = get_current_process();
@@ -86,7 +83,6 @@ pub struct WindowsCpuStats {
 }
 
 pub fn get_cpu_times(kind: &StatType) -> Result<WindowsCpuStats, SporkError> {
-
     match *kind {
         StatType::Process => {
             let handle = get_current_process();
@@ -141,9 +137,7 @@ pub fn get_cpu_times(kind: &StatType) -> Result<WindowsCpuStats, SporkError> {
             "Windows child thread memory stat not yet implemented!".to_owned(),
         )),
     }
-
 }
-
 
 pub fn combine_cpu_times(val: &WindowsCpuStats) -> f64 {
     // Kernal/User time here are in 100ns units. Divide by 10,000,000 to convert
@@ -200,12 +194,10 @@ mod tests {
         let usage = get_cpu_times(&kind);
         match usage {
             Ok(_) => panic!("Should of returned spork error"),
-            Err(err) => {
-                match err.kind {
-                    SporkErrorKind::Unimplemented => assert!(true),
-                    _ => panic!("Wrong error returnd from child process stats failure")
-                }
-            }
+            Err(err) => match err.kind {
+                SporkErrorKind::Unimplemented => assert!(true),
+                _ => panic!("Wrong error returnd from child process stats failure"),
+            },
         }
     }
 
@@ -215,12 +207,10 @@ mod tests {
         let usage = get_mem_stats(&kind);
         match usage {
             Ok(_) => panic!("Should of returned spork error"),
-            Err(err) => {
-                match err.kind {
-                    SporkErrorKind::Unimplemented => assert!(true),
-                    _ => panic!("Wrong error returnd from child process stats failure")
-                }
-            }
+            Err(err) => match err.kind {
+                SporkErrorKind::Unimplemented => assert!(true),
+                _ => panic!("Wrong error returnd from child process stats failure"),
+            },
         }
     }
 }
