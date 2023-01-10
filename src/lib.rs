@@ -154,6 +154,8 @@ impl From<sys_info::Error> for SporkError {
             }
             sys_info::Error::ExecFailed(e) => SporkError::new(SporkErrorKind::Unknown, e.to_string()),
             sys_info::Error::IO(e) => SporkError::new(SporkErrorKind::Unknown, e.to_string()),
+            sys_info::Error::SystemTime(e) => SporkError::new(SporkErrorKind::Unknown, e.to_string()),
+            sys_info::Error::General(e) => SporkError::new(SporkErrorKind::Unknown, e),
             sys_info::Error::Unknown => {
                 SporkError::new(SporkErrorKind::Unknown, "Sys_info encountered an unknown error.")
             }

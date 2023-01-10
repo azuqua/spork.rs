@@ -10,7 +10,7 @@ use std::time;
 
 use self::rand::distributions::{IndependentSample, Range};
 
-use chrono::UTC;
+use chrono::Utc;
 
 macro_rules! sleep_ms(
   ($($arg:tt)*) => { {
@@ -27,7 +27,7 @@ fn fib(n: u64) -> u64 {
 }
 
 fn now_ms() -> i64 {
-    let now = UTC::now();
+    let now = Utc::now();
     (now.timestamp() * 1000 + (now.timestamp_subsec_millis() as i64)) as i64
 }
 
