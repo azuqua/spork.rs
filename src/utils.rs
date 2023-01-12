@@ -1,4 +1,4 @@
-use chrono::UTC;
+use chrono::Utc;
 use sys_info;
 use thread_id;
 
@@ -130,7 +130,7 @@ pub fn calc_duration(kind: &StatType, history: &History, started: i64, polled: i
 }
 
 pub fn now_ms() -> i64 {
-    let now = UTC::now();
+    let now = Utc::now();
     (now.timestamp() * 1000 + (now.timestamp_subsec_millis() as i64)) as i64
 }
 
