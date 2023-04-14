@@ -1,6 +1,4 @@
-extern crate chrono;
-extern crate rand;
-extern crate spork;
+
 
 #[allow(unused_imports)]
 use spork::{Platform, Spork, SporkError, SporkErrorKind, StatType, Stats};
@@ -8,9 +6,8 @@ use spork::{Platform, Spork, SporkError, SporkErrorKind, StatType, Stats};
 use std::thread;
 use std::time;
 
-use self::rand::distributions::{IndependentSample, Range};
-
 use chrono::Utc;
+use rand::Rng;
 
 macro_rules! sleep_ms(
   ($($arg:tt)*) => { {
@@ -32,9 +29,8 @@ fn now_ms() -> i64 {
 }
 
 fn rand_in_range(l: u64, r: u64) -> u64 {
-    let between = Range::new(l, r);
     let mut rng = rand::thread_rng();
-    between.ind_sample(&mut rng)
+    rng.gen_range(l..r)
 }
 
 #[test]

@@ -134,13 +134,18 @@ pub fn now_ms() -> i64 {
     (now.timestamp() * 1000 + (now.timestamp_subsec_millis() as i64)) as i64
 }
 
-pub fn get_platform() -> Result<Platform, SporkError> {
-    match sys_info::os_type()?.as_ref() {
-        "Linux" => Ok(Platform::Linux),
-        "Windows" => Ok(Platform::Windows),
-        "Darwin" => Ok(Platform::MacOS),
-        _ => Ok(Platform::Unknown),
-    }
+pub const fn get_platform() -> Platform {
+    #[cfg(target_os = "linux")]
+    return Platform::Linux;
+
+    #[cfg(target_os = "windows")]
+    return Platform::Windows;
+
+    #[cfg(target_os = "macos")]
+    return Platform::MacOS;
+
+    #[allow(unreachable_code)]
+    return Platform::Unknown;
 }
 
 pub fn calc_cpu_percent(history: &History, kind: &StatType, curr_cpu_time: f64, duration: u64) -> f64 {
@@ -153,17 +158,15 @@ pub fn calc_cpu_percent(history: &History, kind: &StatType, curr_cpu_time: f64, 
 }
 
 pub fn get_cpu_speed() -> Result<u64, SporkError> {
-    match sys_info::cpu_speed() {
-        Ok(s) => Ok(s * 1000),
-        Err(e) => Err(SporkError::from(e)),
-    }
+    Ok(0)
+    // match sys_info::cpu_speed() {
+    //     Ok(s) => Ok(s * 1000),
+    //     Err(e) => Err(SporkError::from(e)),
+    // }
 }
 
-pub fn get_num_cores() -> Result<usize, SporkError> {
-    match sys_info::cpu_num() {
-        Ok(n) => Ok(n as usize),
-        Err(e) => Err(SporkError::from(e)),
-    }
+pub fn get_num_cores() -> usize {
+    num_cpus::get_physical()
 }
 
 // Not actually dead - but cargo thinks it is (Used in tests)
@@ -188,43 +191,38 @@ mod tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn should_get_linux_platform() {
-        assert_eq!(get_platform(), Ok(Platform::Linux));
+        assert_eq!(get_platform(), Platform::Linux);
     }
 
     #[test]
     #[cfg(windows)]
     fn should_get_windows_platform() {
-        assert_eq!(get_platform(), Ok(Platform::Windows));
+        assert_eq!(get_platform(), Platform::Windows);
     }
 
     #[test]
     #[cfg(target_os = "macos")]
     fn should_get_macos_platform() {
-        assert_eq!(get_platform(), Ok(Platform::MacOS));
+        assert_eq!(get_platform(), Platform::MacOS);
     }
 
     #[test]
     #[cfg(not(any(unix, windows, target_os = "macos")))]
     fn should_get_unknown_platform() {
-        assert_eq!(get_platform(), Ok(Platform::Unknown));
+        assert_eq!(get_platform(), Platform::Unknown);
     }
 
     #[test]
     fn should_get_cpu_speed() {
-        let speed = match get_cpu_speed() {
-            Ok(s) => s,
-            Err(e) => panic!("{:?}", e),
-        };
+        let speed = get_cpu_speed()
+            .unwrap();
 
         assert!(speed > 0);
     }
 
     #[test]
     fn should_get_num_cores() {
-        let cores = match get_num_cores() {
-            Ok(n) => n,
-            Err(e) => panic!("{:?}", e),
-        };
+        let cores = get_num_cores();
 
         assert!(cores > 0);
     }

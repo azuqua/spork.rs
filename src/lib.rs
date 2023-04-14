@@ -272,9 +272,9 @@ impl Spork {
     pub fn new() -> Result<Spork, SporkError> {
         Ok(Spork {
             history: History::default(),
-            platform: utils::get_platform()?,
+            platform: utils::get_platform(),
             clock: utils::get_cpu_speed()?,
-            cpus: utils::get_num_cores()?,
+            cpus: utils::get_num_cores(),
             started: utils::now_ms(),
         })
     }
