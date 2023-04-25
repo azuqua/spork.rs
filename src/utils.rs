@@ -158,11 +158,16 @@ pub fn calc_cpu_percent(history: &History, kind: &StatType, curr_cpu_time: f64, 
 }
 
 pub fn get_cpu_speed() -> Result<u64, SporkError> {
-    Ok(0)
-    // match sys_info::cpu_speed() {
-    //     Ok(s) => Ok(s * 1000),
-    //     Err(e) => Err(SporkError::from(e)),
-    // }
+    if cfg!(all(target_os = "macos", target_arch="aarch64")) {
+        // hardcoded to 2.4Ghz on M1 machines
+        // see  sysctl hw.tbfrequency
+        Ok(24000000)
+    } else {
+        match sys_info::cpu_speed() {
+            Ok(s) => Ok(s * 1000),
+            Err(e) => Err(SporkError::from(e)),
+        }
+    }
 }
 
 pub fn get_num_cores() -> usize {
