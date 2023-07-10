@@ -43,7 +43,7 @@ fn should_poll_increased_memory_process() {
 
     while n < 1000000 {
         v.push(255);
-        n = n + 1;
+        n += 1;
     }
 
     let stats = match spork.stats(StatType::Process) {

@@ -20,9 +20,6 @@ thread-id = "3.0"
 winapi = "0.2"
 num_cpus = "1.15"
 
-[dependencies.mach]
-git = "https://github.com/azuqua/mach"
-
 [dev-dependencies]
 rand = "0.8.5"
 

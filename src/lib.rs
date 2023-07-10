@@ -57,9 +57,6 @@ pub type CLong = i32;
 #[cfg(target_pointer_width = "64")]
 pub type CLong = i64;
 
-#[cfg(target_os = "macos")]
-extern crate mach;
-
 extern crate chrono;
 extern crate kernel32;
 extern crate libc;
@@ -114,9 +111,9 @@ impl SporkError {
         };
 
         SporkError {
-            desc: desc,
+            desc,
             details: details.into(),
-            kind: kind,
+            kind,
         }
     }
 
@@ -222,7 +219,7 @@ pub struct Stats {
 impl Stats {
     pub fn new_empty(kind: StatType) -> Stats {
         Stats {
-            kind: kind,
+            kind,
             polled: 0,
             duration: 0,
             cpu_time: 0_f64,
@@ -333,8 +330,8 @@ impl Spork {
         let stats = Stats {
             kind: kind.clone(),
             polled: now,
-            duration: duration,
-            cpu_time: cpu_time,
+            duration,
+            cpu_time,
             cpu: cpu_percent,
             memory: (usage.ru_maxrss as u64) * 1000,
             uptime: utils::safe_unsigned_sub(now, self.started),
@@ -433,12 +430,12 @@ impl Spork {
         let stats = Stats {
             kind: kind.clone(),
             polled: now,
-            duration: duration,
-            cpu_time: cpu_time,
+            duration,
+            cpu_time,
             cpu: cpu_percent,
             memory: (usage.ru_maxrss as u64) * 1000,
             uptime: utils::safe_unsigned_sub(now, self.started),
-            cores: cores,
+            cores,
         };
 
         self.history.set_last(&kind, stats.clone());

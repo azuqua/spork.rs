@@ -1,6 +1,4 @@
 use chrono::Utc;
-use sys_info;
-use thread_id;
 
 use libc::timespec;
 
@@ -131,7 +129,7 @@ pub fn calc_duration(kind: &StatType, history: &History, started: i64, polled: i
 
 pub fn now_ms() -> i64 {
     let now = Utc::now();
-    (now.timestamp() * 1000 + (now.timestamp_subsec_millis() as i64)) as i64
+    now.timestamp() * 1000 + (now.timestamp_subsec_millis() as i64)
 }
 
 pub const fn get_platform() -> Platform {
@@ -154,11 +152,11 @@ pub fn calc_cpu_percent(history: &History, kind: &StatType, curr_cpu_time: f64, 
         None => 0_f64,
     };
     let cpu_time_delta = curr_cpu_time - prev_cpu_time;
-    ((cpu_time_delta / duration as f64) * 1000 as f64) * 100 as f64
+    ((cpu_time_delta / duration as f64) * 1000_f64) * 100_f64
 }
 
 pub fn get_cpu_speed() -> Result<u64, SporkError> {
-    if cfg!(all(target_os = "macos", target_arch="aarch64")) {
+    if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
         // hardcoded to 2.4Ghz on M1 machines
         // see  sysctl hw.tbfrequency
         Ok(24000000)
@@ -219,8 +217,7 @@ mod tests {
 
     #[test]
     fn should_get_cpu_speed() {
-        let speed = get_cpu_speed()
-            .unwrap();
+        let speed = get_cpu_speed().unwrap();
 
         assert!(speed > 0);
     }
