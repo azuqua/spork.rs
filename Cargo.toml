@@ -1,12 +1,10 @@
 [package]
 authors = ["Alec Embke <aembke@gmail.com>"]
 categories = []
-documentation = "http://azuqua.github.io/spork.rs"
 keywords = ["cpu", "memory", "usage"]
 license = "MIT"
 name = "spork"
 readme = "README.md"
-repository = "https://github.com/azuqua/spork.rs"
 version = "0.1.1"
 edition = "2021"
 
