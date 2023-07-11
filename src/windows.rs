@@ -1,77 +1,67 @@
 use std;
+use std::mem::MaybeUninit;
 
-use kernel32;
-use winapi;
-use winapi::psapi::PROCESS_MEMORY_COUNTERS;
+use num_cpus::get;
+use windows_sys::Win32::Foundation::{GetLastError, FILETIME, HANDLE};
+use windows_sys::Win32::System::ProcessStatus::{GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS};
+use windows_sys::Win32::System::Threading::{GetCurrentProcess, GetCurrentThread, GetProcessTimes, GetThreadTimes};
 
 use utils::CpuTime;
 
 use super::*;
 
-fn get_thread_handle() -> winapi::HANDLE {
-    unsafe { kernel32::GetCurrentThread() }
+fn get_thread_handle() -> HANDLE {
+    unsafe { GetCurrentThread() }
 }
 
-fn get_current_process() -> winapi::HANDLE {
-    unsafe { kernel32::GetCurrentProcess() }
+fn get_current_process() -> HANDLE {
+    unsafe { GetCurrentProcess() }
 }
 
-fn empty_filetime() -> winapi::FILETIME {
-    winapi::minwindef::FILETIME {
+fn empty_filetime() -> FILETIME {
+    FILETIME {
         dwLowDateTime: 0,
         dwHighDateTime: 0,
     }
 }
 
-fn empty_proc_mem_counters() -> PROCESS_MEMORY_COUNTERS {
-    PROCESS_MEMORY_COUNTERS {
-        cb: 0,
-        PageFaultCount: 0,
-        PeakWorkingSetSize: 0,
-        WorkingSetSize: 0,
-        QuotaPeakPagedPoolUsage: 0,
-        QuotaPagedPoolUsage: 0,
-        QuotaPeakNonPagedPoolUsage: 0,
-        QuotaNonPagedPoolUsage: 0,
-        PagefileUsage: 0,
-        PeakPagefileUsage: 0,
-    }
-}
-
 // convert the two 32 bit ints in a FILETIME a u64
-fn wtf(f: winapi::minwindef::FILETIME) -> u64 {
+fn wtf(f: FILETIME) -> u64 {
     (f.dwLowDateTime + (2 << 31) * f.dwHighDateTime) as u64
 }
 
 pub fn get_mem_stats(kind: &StatType) -> Result<PROCESS_MEMORY_COUNTERS, SporkError> {
-    match *kind {
-        StatType::Process => {
-            let handle = get_current_process();
-            let mut memory = empty_proc_mem_counters();
-            let cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
-
-            unsafe {
-                kernel32::K32GetProcessMemoryInfo(handle, &mut memory, cb);
-            };
-
-            Ok(memory)
+    let handle = match kind {
+        &StatType::Process => get_current_process(),
+        &StatType::Thread => get_thread_handle(),
+        &StatType::Children => {
+            return Err(SporkError::new(
+                SporkErrorKind::Unimplemented,
+                "Windows child thread memory stat not yet implemented!".to_owned(),
+            ))
         }
-        StatType::Thread => {
-            let handle = get_thread_handle();
-            let mut memory = empty_proc_mem_counters();
-            let cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
+    };
 
-            unsafe {
-                kernel32::K32GetProcessMemoryInfo(handle, &mut memory, cb);
-            };
+    // SAFETY: Check the last windows error to ensure that the returned value
+    // is in a valid state.
+    let memory = unsafe {
+        let mut memory = MaybeUninit::zeroed();
+        let result = GetProcessMemoryInfo(
+            handle,
+            memory.as_mut_ptr(),
+            std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32,
+        );
 
-            Ok(memory)
+        if result == 0 {
+            let error = unsafe { GetLastError() };
+            return Err(SporkError::new(
+                SporkErrorKind::Unknown,
+                format!("Win32Error: {error:x}"),
+            ));
         }
-        StatType::Children => Err(SporkError::new(
-            SporkErrorKind::Unimplemented,
-            "Windows child thread memory stat not yet implemented!".to_owned(),
-        )),
-    }
+        memory.assume_init()
+    };
+    Ok(memory)
 }
 
 #[derive(Debug)]
@@ -86,56 +76,88 @@ pub fn get_cpu_times(kind: &StatType) -> Result<WindowsCpuStats, SporkError> {
     match *kind {
         StatType::Process => {
             let handle = get_current_process();
-            let mut lp_creation_time = empty_filetime();
-            let mut lp_exit_time = empty_filetime();
-            let mut lp_kernal_time = empty_filetime();
-            let mut lp_user_time = empty_filetime();
+            let mut lp_creation_time = MaybeUninit::zeroed();
+            let mut lp_exit_time = MaybeUninit::zeroed();
+            let mut lp_kernel_time = MaybeUninit::zeroed();
+            let mut lp_user_time = MaybeUninit::zeroed();
 
             unsafe {
-                kernel32::GetProcessTimes(
+                let result = GetProcessTimes(
                     handle,
-                    &mut lp_creation_time,
-                    &mut lp_exit_time,
-                    &mut lp_kernal_time,
-                    &mut lp_user_time,
+                    lp_creation_time.as_mut_ptr(),
+                    lp_exit_time.as_mut_ptr(),
+                    lp_kernel_time.as_mut_ptr(),
+                    lp_user_time.as_mut_ptr(),
                 );
+
+                if result == 0 {
+                    let error = unsafe { GetLastError() };
+                    return Err(SporkError::new(
+                        SporkErrorKind::Unknown,
+                        format!("Win32Error: {error:x}"),
+                    ));
+                }
             };
+
+            // SAFETY: The last windows error was checked to ensure all values requested
+            // are in a valid state.
+            let lp_creation_time = unsafe { lp_creation_time.assume_init() };
+            let lp_exit_time = unsafe { lp_exit_time.assume_init() };
+            let lp_kernel_time = unsafe { lp_kernel_time.assume_init() };
+            let lp_user_time = unsafe { lp_user_time.assume_init() };
 
             Ok(WindowsCpuStats {
                 creation: wtf(lp_creation_time),
                 exit: wtf(lp_exit_time),
-                kernel: wtf(lp_kernal_time),
+                kernel: wtf(lp_kernel_time),
                 user: wtf(lp_user_time),
             })
         }
         StatType::Thread => {
             let handle = get_thread_handle();
-            let mut lp_creation_time = empty_filetime();
-            let mut lp_exit_time = empty_filetime();
-            let mut lp_kernal_time = empty_filetime();
-            let mut lp_user_time = empty_filetime();
+            let mut lp_creation_time = MaybeUninit::zeroed();
+            let mut lp_exit_time = MaybeUninit::zeroed();
+            let mut lp_kernel_time = MaybeUninit::zeroed();
+            let mut lp_user_time = MaybeUninit::zeroed();
 
             unsafe {
-                kernel32::GetThreadTimes(
+                let result = GetThreadTimes(
                     handle,
-                    &mut lp_creation_time,
-                    &mut lp_exit_time,
-                    &mut lp_kernal_time,
-                    &mut lp_user_time,
+                    lp_creation_time.as_mut_ptr(),
+                    lp_exit_time.as_mut_ptr(),
+                    lp_kernel_time.as_mut_ptr(),
+                    lp_user_time.as_mut_ptr(),
                 );
+
+                if result == 0 {
+                    let error = unsafe { GetLastError() };
+                    return Err(SporkError::new(
+                        SporkErrorKind::Unknown,
+                        format!("Win32Error: {error:x}"),
+                    ));
+                }
             };
+
+            // SAFETY: The last windows error was checked to ensure all values requested
+            // are in a valid state.
+            let lp_creation_time = unsafe { lp_creation_time.assume_init() };
+            let lp_exit_time = unsafe { lp_exit_time.assume_init() };
+            let lp_kernel_time = unsafe { lp_kernel_time.assume_init() };
+            let lp_user_time = unsafe { lp_user_time.assume_init() };
 
             Ok(WindowsCpuStats {
                 creation: wtf(lp_creation_time),
                 exit: wtf(lp_exit_time),
-                kernel: wtf(lp_kernal_time),
+                kernel: wtf(lp_kernel_time),
                 user: wtf(lp_user_time),
             })
         }
-        StatType::Children => Err(SporkError::new(
-            SporkErrorKind::Unimplemented,
-            "Windows child thread memory stat not yet implemented!".to_owned(),
-        )),
+        StatType::Children => {
+            return Err(SporkError::new(
+                SporkErrorKind::Unimplemented,
+                "Windows child thread memory stat not yet implemented!".to_owned(),
+            ))
+        }
     }
 }
 

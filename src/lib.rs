@@ -57,14 +57,6 @@ pub type CLong = i32;
 #[cfg(target_pointer_width = "64")]
 pub type CLong = i64;
 
-extern crate chrono;
-extern crate kernel32;
-extern crate libc;
-extern crate psapi;
-extern crate sys_info;
-extern crate thread_id;
-extern crate winapi;
-
 mod utils;
 
 use utils::History;

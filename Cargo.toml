@@ -11,14 +11,21 @@ version = "0.1.1"
 edition = "2021"
 
 [dependencies]
-chrono = "0.4.23"
-kernel32-sys = "0.2"
+chrono = "0.4"
 libc = "0.2"
-psapi-sys = "0.1"
-sys-info = "0.9.1"
-thread-id = "4.1.0"
-winapi = "0.2"
+sys-info = "0.9"
+thread-id = "4.1"
 num_cpus = "1.15"
+
+
+[target.'cfg(windows)'.dependencies.windows-sys]
+version = "0.48.0"
+features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_System_ProcessStatus"
+]
+
 
 [dev-dependencies]
 rand = "0.8.5"
