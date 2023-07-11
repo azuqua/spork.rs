@@ -16,7 +16,7 @@ kernel32-sys = "0.2"
 libc = "0.2"
 psapi-sys = "0.1"
 sys-info = "0.9.1"
-thread-id = "3.0"
+thread-id = "4.1.0"
 winapi = "0.2"
 num_cpus = "1.15"
 
