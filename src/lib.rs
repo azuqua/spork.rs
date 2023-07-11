@@ -59,6 +59,7 @@ pub type CLong = i64;
 
 mod utils;
 
+use std::fmt::{Display, Formatter};
 use utils::History;
 
 use std::io::Error as IoError;
@@ -93,6 +94,12 @@ pub struct SporkError {
     kind: SporkErrorKind,
 }
 
+impl Display for SporkError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {}", &self.desc, &self.details))
+    }
+}
+
 impl SporkError {
     /// Create a new SporkError instance
     pub fn new<T: Into<String>>(kind: SporkErrorKind, details: T) -> SporkError {
@@ -117,11 +124,6 @@ impl SporkError {
     /// Read the error's kind
     pub fn kind(&self) -> &SporkErrorKind {
         &self.kind
-    }
-
-    /// Read a formatted string consisting of error desc and details
-    pub fn to_string(&self) -> String {
-        format!("{}: {}", &self.desc, &self.details)
     }
 
     /// Create a new `Error` instance from a borrowed str.

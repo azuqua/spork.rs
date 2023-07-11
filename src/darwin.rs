@@ -166,10 +166,10 @@ pub fn get_cpu_time(val: &rusage) -> f64 {
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 pub fn poke_apple_silicon_cpu_freq() -> Result<u32, SporkError> {
     use apple_sys::IOKit::{
-        kCFAllocatorDefault, kCFAllocatorNull, kIOMainPortDefault, kIOMasterPortDefault, Boolean, CFDataGetBytes,
-        CFDataGetLength, CFIndex, CFRange, CFRelease, CFStringBuiltInEncodings_kCFStringEncodingUTF8,
-        CFStringCreateWithBytesNoCopy, IOIteratorNext, IOMasterPort, IOObjectRelease, IORegistryEntryCreateCFProperty,
-        IORegistryEntryGetName, IOServiceGetMatchingServices, IOServiceMatching, MACH_PORT_NULL,
+        kCFAllocatorDefault, kCFAllocatorNull, kIOMainPortDefault, CFDataGetBytes, CFDataGetLength, CFIndex, CFRange,
+        CFRelease, CFStringBuiltInEncodings_kCFStringEncodingUTF8, CFStringCreateWithBytesNoCopy, IOIteratorNext,
+        IOObjectRelease, IORegistryEntryCreateCFProperty, IORegistryEntryGetName, IOServiceGetMatchingServices,
+        IOServiceMatching,
     };
 
     // SAFETY: IOServiceMatching accepts a C string for name.
