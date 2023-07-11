@@ -132,6 +132,7 @@ pub fn now_ms() -> i64 {
     now.timestamp() * 1000 + (now.timestamp_subsec_millis() as i64)
 }
 
+#[allow(unreachable_code)]
 pub const fn get_platform() -> Platform {
     #[cfg(target_os = "linux")]
     return Platform::Linux;
@@ -142,8 +143,7 @@ pub const fn get_platform() -> Platform {
     #[cfg(target_os = "macos")]
     return Platform::MacOS;
 
-    #[allow(unreachable_code)]
-    return Platform::Unknown;
+    Platform::Unknown
 }
 
 pub fn calc_cpu_percent(history: &History, kind: &StatType, curr_cpu_time: f64, duration: u64) -> f64 {
@@ -155,16 +155,17 @@ pub fn calc_cpu_percent(history: &History, kind: &StatType, curr_cpu_time: f64, 
     ((cpu_time_delta / duration as f64) * 1000_f64) * 100_f64
 }
 
+
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 pub fn get_cpu_speed() -> Result<u64, SporkError> {
-    if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-        // hardcoded to 2.4Ghz on M1 machines
-        // see  sysctl hw.tbfrequency
-        Ok(24000000)
-    } else {
-        match sys_info::cpu_speed() {
-            Ok(s) => Ok(s * 1000),
-            Err(e) => Err(SporkError::from(e)),
-        }
+    return Ok(darwin::poke_apple_silicon_cpu_freq()? as u64);
+}
+
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+pub fn get_cpu_speed() -> Result<u64, SporkError> {
+    match sys_info::cpu_speed() {
+        Ok(s) => Ok(s * 1000),
+        Err(e) => Err(SporkError::from(e)),
     }
 }
 

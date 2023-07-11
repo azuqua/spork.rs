@@ -17,7 +17,6 @@ sys-info = "0.9"
 thread-id = "4.1"
 num_cpus = "1.15"
 
-
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.48.0"
 features = [
@@ -26,6 +25,11 @@ features = [
     "Win32_System_ProcessStatus"
 ]
 
+[target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies.apple-sys]
+version = "0.2.0"
+features = [
+    "IOKit"
+]
 
 [dev-dependencies]
 rand = "0.8.5"

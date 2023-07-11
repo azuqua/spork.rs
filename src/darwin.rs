@@ -1,6 +1,3 @@
-use std::mem::MaybeUninit;
-use std::time::Duration;
-
 use libc::timespec;
 use libc::timeval;
 use libc::{
@@ -9,12 +6,16 @@ use libc::{
     TASK_THREAD_TIMES_INFO_COUNT,
 };
 use libc::{EFAULT, EINVAL, EPERM, RUSAGE_CHILDREN, RUSAGE_SELF};
+use std::ffi::CStr;
+use std::mem::MaybeUninit;
+use std::time::Duration;
 
 pub const MIG_ARRAY_TOO_LARGE: kern_return_t = -307;
 
 use super::*;
 
 use utils::CpuTime;
+const VOLTAGE_STATE5_SRAM: &[u8] = b"voltage-states5-sram";
 
 fn map_posix_resp(code: i32) -> Result<i32, SporkError> {
     match code {
@@ -135,7 +136,7 @@ pub fn get_stats(kind: &StatType) -> Result<rusage, SporkError> {
         StatType::Thread => (Some(get_thread_cpu_time()?), None),
     };
 
-    let mut usage = std::mem::MaybeUninit::zeroed();
+    let mut usage = MaybeUninit::zeroed();
     if let Some(r_code) = code {
         let _ = map_posix_resp(unsafe { libc::getrusage(r_code, usage.as_mut_ptr()) })?;
     } else {
@@ -159,6 +160,117 @@ pub fn get_cpu_time(val: &rusage) -> f64 {
     };
 
     (times.sec as f64) + (times.usec as f64 / 1000000_f64)
+}
+
+/// Poke the maximum CPU frequency from IOReg on Apple Silicon systems in Hz.
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub fn poke_apple_silicon_cpu_freq() -> Result<u32, SporkError> {
+    use apple_sys::IOKit::{
+        kCFAllocatorDefault, kCFAllocatorNull, kIOMainPortDefault, kIOMasterPortDefault, Boolean, CFDataGetBytes,
+        CFDataGetLength, CFIndex, CFRange, CFRelease, CFStringBuiltInEncodings_kCFStringEncodingUTF8,
+        CFStringCreateWithBytesNoCopy, IOIteratorNext, IOMasterPort, IOObjectRelease, IORegistryEntryCreateCFProperty,
+        IORegistryEntryGetName, IOServiceGetMatchingServices, IOServiceMatching, MACH_PORT_NULL,
+    };
+
+    // SAFETY: IOServiceMatching accepts a C string for name.
+    // https://developer.apple.com/documentation/iokit/1514687-ioservicematching
+    let matching = unsafe {
+        let matching = IOServiceMatching(b"AppleARMIODevice\0".as_ptr().cast());
+        if matching.is_null() {
+            return Err(SporkError::unimplemented());
+        }
+        matching
+    };
+
+    let mut iter = 0;
+    // SAFETY: matching has been checked to be not null. iter is always initialized and aligned.
+    let _ = map_mach_resp(unsafe { IOServiceGetMatchingServices(kIOMainPortDefault, matching, &mut iter) })?;
+
+    // io_name_t is defined as an array of 128 chars.
+    // https://developer.apple.com/documentation/kernel/io_name_t
+    let mut name = [0u8; 128];
+
+    let entry = 'entry: {
+        loop {
+            // SAFETY: Even if iter is invalid, this is safe to call, and will return 0.
+            let entry = unsafe { IOIteratorNext(iter) };
+            if entry == 0 {
+                break;
+            }
+            // SAFETY: name is io_name_t, which has size of 128 chars. It remains alive until
+            // the end of this function.
+            if map_mach_resp(unsafe { IORegistryEntryGetName(entry, name.as_mut_ptr().cast()) }).is_err() {
+                // SAFETY: An error occurred so we must release the current entry.
+                unsafe {
+                    IOObjectRelease(entry);
+                    continue;
+                }
+            }
+
+            // IORegistryEntryName always returns a C-string name assigned to a registry entry,
+            // if there is no error.
+            // https://developer.apple.com/documentation/iokit/1514323-ioregistryentrygetname
+            let name = CStr::from_bytes_until_nul(&name).expect("kernel iterator should always return null-terminator");
+            if name.to_bytes() == b"pmgr" {
+                break 'entry entry;
+            } else {
+                // SAFETY: We are finished with the entry and should release it.
+                unsafe {
+                    IOObjectRelease(entry);
+                }
+            }
+        }
+
+        return Err(SporkError::unimplemented());
+    };
+
+    let p_core_ref = unsafe {
+        // SAFETY: CFStringCreateWithBytesNoCopy does not accept null-terminators,
+        // and does not need to be deallocated since we're using the static string
+        // as the backing memory.
+        let prop_name = CFStringCreateWithBytesNoCopy(
+            kCFAllocatorDefault,
+            VOLTAGE_STATE5_SRAM.as_ptr(),
+            VOLTAGE_STATE5_SRAM.len() as CFIndex,
+            CFStringBuiltInEncodings_kCFStringEncodingUTF8,
+            0,
+            kCFAllocatorNull,
+        );
+
+        // SAFETY: CFStringCreateWithBytesNoCopy is infallible, so prop_name is always valid.
+        IORegistryEntryCreateCFProperty(entry, prop_name, kCFAllocatorDefault, 0)
+    };
+
+    if p_core_ref.is_null() {
+        return Err(SporkError::unimplemented());
+    }
+
+    /// SAFETY: p_core_ref has been checked for null.
+    let p_core_len = unsafe { CFDataGetLength(p_core_ref.cast()) };
+    if p_core_len < 8 {
+        return Err(SporkError::unimplemented());
+    }
+
+    let range = CFRange {
+        location: p_core_len - 8,
+        length: 4,
+    };
+
+    let mut cpu_freq = [0u8; 4];
+    // SAFETY: p_core_len must be at least 8 bytes. Therefore, the
+    // 4 byte range requested, from 8 bytes before the end of the buffer,
+    // always falls within the buffer of the data p_core_ref points to.
+    unsafe { CFDataGetBytes(p_core_ref.cast(), range, cpu_freq.as_mut_ptr()) }
+
+    // SAFETY: p_core_ref is not null. entry and iter are invalid after
+    // this block, and are no longer used.
+    unsafe {
+        CFRelease(p_core_ref);
+        IOObjectRelease(entry);
+        IOObjectRelease(iter);
+    }
+
+    Ok(u32::from_le_bytes(cpu_freq))
 }
 
 // -----------------------------------------
