@@ -170,7 +170,7 @@ pub fn get_cpu_speed() -> Result<u64, SporkError> {
 }
 
 pub fn get_num_cores() -> usize {
-    num_cpus::get_physical()
+    num_cpus::get()
 }
 
 // Not actually dead - but cargo thinks it is (Used in tests)
