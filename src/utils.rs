@@ -155,7 +155,6 @@ pub fn calc_cpu_percent(history: &History, kind: &StatType, curr_cpu_time: f64, 
     ((cpu_time_delta / duration as f64) * 1000_f64) * 100_f64
 }
 
-
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 pub fn get_cpu_speed() -> Result<u64, SporkError> {
     return Ok(darwin::poke_apple_silicon_cpu_freq()? as u64);

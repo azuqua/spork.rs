@@ -1,21 +1,17 @@
-use libc::timespec;
-use libc::timeval;
 use libc::{
     integer_t, kern_return_t, mach_task_basic_info, mach_task_self, rusage, task_thread_times_info, time_value_t,
-    KERN_INVALID_ARGUMENT, KERN_SUCCESS, MACH_TASK_BASIC_INFO, MACH_TASK_BASIC_INFO_COUNT, TASK_THREAD_TIMES_INFO,
-    TASK_THREAD_TIMES_INFO_COUNT,
+    timespec, timeval, EFAULT, EINVAL, EPERM, KERN_INVALID_ARGUMENT, KERN_SUCCESS, MACH_TASK_BASIC_INFO,
+    MACH_TASK_BASIC_INFO_COUNT, RUSAGE_CHILDREN, RUSAGE_SELF, TASK_THREAD_TIMES_INFO, TASK_THREAD_TIMES_INFO_COUNT,
 };
-use libc::{EFAULT, EINVAL, EPERM, RUSAGE_CHILDREN, RUSAGE_SELF};
-use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::time::Duration;
 
+// https://opensource.apple.com/source/xnu/xnu-792/osfmk/mach/mig_errors.h
 pub const MIG_ARRAY_TOO_LARGE: kern_return_t = -307;
 
 use super::*;
 
 use utils::CpuTime;
-const VOLTAGE_STATE5_SRAM: &[u8] = b"voltage-states5-sram";
 
 fn map_posix_resp(code: i32) -> Result<i32, SporkError> {
     match code {
@@ -172,6 +168,9 @@ pub fn poke_apple_silicon_cpu_freq() -> Result<u32, SporkError> {
         IOServiceMatching,
     };
 
+    use std::ffi::CStr;
+    const VOLTAGE_STATE5_SRAM: &[u8] = b"voltage-states5-sram";
+
     // SAFETY: IOServiceMatching accepts a C string for name.
     // https://developer.apple.com/documentation/iokit/1514687-ioservicematching
     let matching = unsafe {
@@ -245,7 +244,7 @@ pub fn poke_apple_silicon_cpu_freq() -> Result<u32, SporkError> {
         return Err(SporkError::unimplemented());
     }
 
-    /// SAFETY: p_core_ref has been checked for null.
+    // SAFETY: p_core_ref has been checked for null.
     let p_core_len = unsafe { CFDataGetLength(p_core_ref.cast()) };
     if p_core_len < 8 {
         return Err(SporkError::unimplemented());
@@ -257,8 +256,9 @@ pub fn poke_apple_silicon_cpu_freq() -> Result<u32, SporkError> {
     };
 
     let mut cpu_freq = [0u8; 4];
-    // SAFETY: p_core_len must be at least 8 bytes. Therefore, the
-    // 4 byte range requested, from 8 bytes before the end of the buffer,
+    // SAFETY: p_core_len must be at least 8 bytes as that is the minimum length of
+    // two integers that represent a frequency/power state tuple.
+    // Therefore, the 4 byte range requested, from 8 bytes before the end of the buffer,
     // always falls within the buffer of the data p_core_ref points to.
     unsafe { CFDataGetBytes(p_core_ref.cast(), range, cpu_freq.as_mut_ptr()) }
 
