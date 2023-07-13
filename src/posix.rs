@@ -47,7 +47,8 @@ pub fn timespec_to_timeval(times: &timespec) -> timeval {
 // this should always be called before get_stats since they both consume the clock
 pub fn get_thread_cpu_time() -> Result<timespec, SporkError> {
     let mut times = empty_timespec();
-    let _ = map_posix_resp(unsafe { libc::clock_gettime(CLOCK_THREAD_CPUTIME_ID, &mut times) })?;
+    let _ = map_posix_resp(unsafe {
+        libc::clock_gettime(CLOCK_THREAD_CPUTIME_ID, &mut times) })?;
 
     Ok(times)
 }
@@ -59,13 +60,16 @@ pub fn get_stats(kind: &StatType) -> Result<rusage, SporkError> {
         StatType::Thread => (Some(get_thread_cpu_time()?), RUSAGE_THREAD),
     };
 
-    let (getrusage_ret, mut usage) = unsafe {
-        let mut usage = std::mem::MaybeUninit::zeroed().assume_init();
-        (libc::getrusage(code, &mut usage), usage)
+    let (getrusage_ret, usage) = unsafe {
+        let mut usage = std::mem::MaybeUninit::zeroed();
+        let ret = libc::getrusage(code, usage.as_mut_ptr());
+        (ret, usage)
     };
 
     let _ = map_posix_resp(getrusage_ret)?;
 
+    // SAFETY: ret was checked to not be an error.
+    let mut usage = unsafe { usage.assume_init() };
     if t_times.is_some() {
         // use clock_gettime results for threads
         usage.ru_utime = timespec_to_timeval(&t_times.unwrap());
