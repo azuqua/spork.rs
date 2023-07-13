@@ -12,7 +12,6 @@ edition = "2021"
 chrono = "0.4"
 libc = "0.2"
 sys-info = "0.9"
-thread-id = "4.1"
 num_cpus = "1.15"
 
 [target.'cfg(windows)'.dependencies.windows-sys]

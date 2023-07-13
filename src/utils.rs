@@ -6,11 +6,12 @@ use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+use std::thread::ThreadId;
 
 use super::*;
 
-pub fn get_thread_id() -> usize {
-    thread_id::get()
+pub fn get_thread_id() -> ThreadId {
+    std::thread::current().id()
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -23,9 +24,9 @@ pub struct CpuTime {
 pub struct History {
     process: RefCell<Option<Stats>>,
     // maps thread_id's to the last polled stats
-    thread: RefCell<HashMap<usize, Stats>>,
+    thread: RefCell<HashMap<ThreadId, Stats>>,
     // maps thread_id's to the last polled stats
-    children: RefCell<HashMap<usize, Stats>>,
+    children: RefCell<HashMap<ThreadId, Stats>>,
 }
 
 impl Default for History {
@@ -183,13 +184,6 @@ pub fn empty_timespec() -> timespec {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn should_get_thread_id() {
-        let id = get_thread_id();
-        // FIXME make this smarter
-        assert!(id > 0);
-    }
 
     #[test]
     #[cfg(target_os = "linux")]
