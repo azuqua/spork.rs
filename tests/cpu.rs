@@ -1,16 +1,11 @@
-extern crate chrono;
-extern crate rand;
-extern crate spork;
-
 #[allow(unused_imports)]
 use spork::{Platform, Spork, SporkError, SporkErrorKind, StatType, Stats};
 
 use std::thread;
 use std::time;
 
-use self::rand::distributions::{IndependentSample, Range};
-
 use chrono::Utc;
+use rand::Rng;
 
 macro_rules! sleep_ms(
   ($($arg:tt)*) => { {
@@ -28,13 +23,12 @@ fn fib(n: u64) -> u64 {
 
 fn now_ms() -> i64 {
     let now = Utc::now();
-    (now.timestamp() * 1000 + (now.timestamp_subsec_millis() as i64)) as i64
+    now.timestamp() * 1000 + (now.timestamp_subsec_millis() as i64)
 }
 
 fn rand_in_range(l: u64, r: u64) -> u64 {
-    let between = Range::new(l, r);
     let mut rng = rand::thread_rng();
-    between.ind_sample(&mut rng)
+    rng.gen_range(l..r)
 }
 
 #[test]

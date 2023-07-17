@@ -1,6 +1,4 @@
 use chrono::Utc;
-use sys_info;
-use thread_id;
 
 use libc::timespec;
 
@@ -8,11 +6,12 @@ use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+use std::thread::ThreadId;
 
 use super::*;
 
-pub fn get_thread_id() -> usize {
-    thread_id::get()
+pub fn get_thread_id() -> ThreadId {
+    std::thread::current().id()
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -25,9 +24,9 @@ pub struct CpuTime {
 pub struct History {
     process: RefCell<Option<Stats>>,
     // maps thread_id's to the last polled stats
-    thread: RefCell<HashMap<usize, Stats>>,
+    thread: RefCell<HashMap<ThreadId, Stats>>,
     // maps thread_id's to the last polled stats
-    children: RefCell<HashMap<usize, Stats>>,
+    children: RefCell<HashMap<ThreadId, Stats>>,
 }
 
 impl Default for History {
@@ -131,16 +130,21 @@ pub fn calc_duration(kind: &StatType, history: &History, started: i64, polled: i
 
 pub fn now_ms() -> i64 {
     let now = Utc::now();
-    (now.timestamp() * 1000 + (now.timestamp_subsec_millis() as i64)) as i64
+    now.timestamp() * 1000 + (now.timestamp_subsec_millis() as i64)
 }
 
-pub fn get_platform() -> Result<Platform, SporkError> {
-    match sys_info::os_type()?.as_ref() {
-        "Linux" => Ok(Platform::Linux),
-        "Windows" => Ok(Platform::Windows),
-        "Darwin" => Ok(Platform::MacOS),
-        _ => Ok(Platform::Unknown),
-    }
+#[allow(unreachable_code)]
+pub const fn get_platform() -> Platform {
+    #[cfg(target_os = "linux")]
+    return Platform::Linux;
+
+    #[cfg(target_os = "windows")]
+    return Platform::Windows;
+
+    #[cfg(target_os = "macos")]
+    return Platform::MacOS;
+
+    Platform::Unknown
 }
 
 pub fn calc_cpu_percent(history: &History, kind: &StatType, curr_cpu_time: f64, duration: u64) -> f64 {
@@ -149,9 +153,15 @@ pub fn calc_cpu_percent(history: &History, kind: &StatType, curr_cpu_time: f64, 
         None => 0_f64,
     };
     let cpu_time_delta = curr_cpu_time - prev_cpu_time;
-    ((cpu_time_delta / duration as f64) * 1000 as f64) * 100 as f64
+    ((cpu_time_delta / duration as f64) * 1000_f64) * 100_f64
 }
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub fn get_cpu_speed() -> Result<u64, SporkError> {
+    return Ok(darwin::poke_apple_silicon_cpu_freq()? as u64);
+}
+
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 pub fn get_cpu_speed() -> Result<u64, SporkError> {
     match sys_info::cpu_speed() {
         Ok(s) => Ok(s * 1000),
@@ -159,11 +169,8 @@ pub fn get_cpu_speed() -> Result<u64, SporkError> {
     }
 }
 
-pub fn get_num_cores() -> Result<usize, SporkError> {
-    match sys_info::cpu_num() {
-        Ok(n) => Ok(n as usize),
-        Err(e) => Err(SporkError::from(e)),
-    }
+pub fn get_num_cores() -> usize {
+    num_cpus::get()
 }
 
 // Not actually dead - but cargo thinks it is (Used in tests)
@@ -179,52 +186,39 @@ mod tests {
     use super::*;
 
     #[test]
-    fn should_get_thread_id() {
-        let id = get_thread_id();
-        // FIXME make this smarter
-        assert!(id > 0);
-    }
-
-    #[test]
     #[cfg(target_os = "linux")]
     fn should_get_linux_platform() {
-        assert_eq!(get_platform(), Ok(Platform::Linux));
+        assert_eq!(get_platform(), Platform::Linux);
     }
 
     #[test]
     #[cfg(windows)]
     fn should_get_windows_platform() {
-        assert_eq!(get_platform(), Ok(Platform::Windows));
+        assert_eq!(get_platform(), Platform::Windows);
     }
 
     #[test]
     #[cfg(target_os = "macos")]
     fn should_get_macos_platform() {
-        assert_eq!(get_platform(), Ok(Platform::MacOS));
+        assert_eq!(get_platform(), Platform::MacOS);
     }
 
     #[test]
     #[cfg(not(any(unix, windows, target_os = "macos")))]
     fn should_get_unknown_platform() {
-        assert_eq!(get_platform(), Ok(Platform::Unknown));
+        assert_eq!(get_platform(), Platform::Unknown);
     }
 
     #[test]
     fn should_get_cpu_speed() {
-        let speed = match get_cpu_speed() {
-            Ok(s) => s,
-            Err(e) => panic!("{:?}", e),
-        };
+        let speed = get_cpu_speed().unwrap();
 
         assert!(speed > 0);
     }
 
     #[test]
     fn should_get_num_cores() {
-        let cores = match get_num_cores() {
-            Ok(n) => n,
-            Err(e) => panic!("{:?}", e),
-        };
+        let cores = get_num_cores();
 
         assert!(cores > 0);
     }

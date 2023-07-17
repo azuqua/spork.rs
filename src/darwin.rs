@@ -1,20 +1,13 @@
-use mach::task::task_info;
-use mach::task_info::{
-    task_basic_info, task_basic_info_t, task_thread_times_info, task_thread_times_info_t, MIG_ARRAY_TOO_LARGE,
-    TASK_BASIC_INFO, TASK_BASIC_INFO_COUNT, TASK_THREAD_TIMES_INFO, TASK_THREAD_TIMES_INFO_COUNT,
+use libc::{
+    integer_t, kern_return_t, mach_task_basic_info, mach_task_self, rusage, task_thread_times_info, time_value_t,
+    timespec, timeval, EFAULT, EINVAL, EPERM, KERN_INVALID_ARGUMENT, KERN_SUCCESS, MACH_TASK_BASIC_INFO,
+    MACH_TASK_BASIC_INFO_COUNT, RUSAGE_CHILDREN, RUSAGE_SELF, TASK_THREAD_TIMES_INFO, TASK_THREAD_TIMES_INFO_COUNT,
 };
+use std::mem::MaybeUninit;
+use std::time::Duration;
 
-use mach::time_value::{time_value_add, time_value_t};
-
-use mach::traps::mach_task_self;
-
-use mach::kern_return::{KERN_INVALID_ARGUMENT, KERN_SUCCESS};
-
-use libc;
-use libc::rusage;
-use libc::timespec;
-use libc::timeval;
-use libc::{EFAULT, EINVAL, EPERM, RUSAGE_CHILDREN, RUSAGE_SELF};
+// https://opensource.apple.com/source/xnu/xnu-792/osfmk/mach/mig_errors.h
+pub const MIG_ARRAY_TOO_LARGE: kern_return_t = -307;
 
 use super::*;
 
@@ -54,31 +47,36 @@ fn map_mach_resp(code: libc::c_int) -> Result<i32, SporkError> {
 }
 
 #[allow(dead_code)]
-pub fn merge_thread_times_to_timespec(thread_times: &task_thread_times_info) -> timespec {
-    let mut time_total = time_value_t {
-        seconds: 0,
-        microseconds: 0,
-    };
-    time_value_add(&mut time_total, &(thread_times.user_time));
-    time_value_add(&mut time_total, &(thread_times.system_time));
-    time_value_t_to_timespec(&time_total)
+pub fn merge_thread_times_to_timespec(thread_times: task_thread_times_info) -> timespec {
+    let user_time = Duration::from_micros(thread_times.user_time.microseconds as u64)
+        + Duration::from_secs(thread_times.user_time.seconds as u64);
+
+    let system_time = Duration::from_micros(thread_times.system_time.microseconds as u64)
+        + Duration::from_secs(thread_times.system_time.seconds as u64);
+
+    let total = user_time + system_time;
+
+    time_value_t_to_timespec(time_value_t {
+        seconds: total.as_secs() as integer_t,
+        microseconds: total.subsec_micros() as integer_t,
+    })
 }
 
-pub fn time_value_t_to_timespec(times: &time_value_t) -> timespec {
+pub fn time_value_t_to_timespec(times: time_value_t) -> timespec {
     timespec {
         tv_sec: times.seconds as i64,
         tv_nsec: (times.microseconds * 1000) as i64,
     }
 }
 
-pub fn time_value_t_to_timeval(times: &time_value_t) -> timeval {
+pub fn time_value_t_to_timeval(times: time_value_t) -> timeval {
     timeval {
         tv_sec: times.seconds as i64,
         tv_usec: times.microseconds,
     }
 }
 
-pub fn timespec_to_timeval(times: &timespec) -> timeval {
+pub fn timespec_to_timeval(times: timespec) -> timeval {
     timeval {
         tv_sec: times.tv_sec,
         tv_usec: (times.tv_nsec / 1000) as i32,
@@ -86,35 +84,45 @@ pub fn timespec_to_timeval(times: &timespec) -> timeval {
 }
 
 pub fn get_rusage_from_mach(usage: &mut rusage) -> Result<i32, SporkError> {
-    let mut basic_info = task_basic_info::new();
-    let basic_info_ptr = (&mut basic_info as task_basic_info_t) as libc::uintptr_t;
-    let mut count = TASK_BASIC_INFO_COUNT;
+    let mut count = MACH_TASK_BASIC_INFO_COUNT;
 
-    map_mach_resp(unsafe { task_info(mach_task_self(), TASK_BASIC_INFO, basic_info_ptr, &mut count) })?;
+    let mut basic_info: MaybeUninit<mach_task_basic_info> = MaybeUninit::zeroed();
+    map_mach_resp(unsafe {
+        libc::task_info(
+            mach_task_self(),
+            MACH_TASK_BASIC_INFO,
+            basic_info.as_mut_ptr().cast(),
+            &mut count,
+        )
+    })?;
+
+    let basic_info = unsafe { basic_info.assume_init() };
+
     usage.ru_maxrss = basic_info.resident_size as i64 / 1024;
-    usage.ru_stime = time_value_t_to_timeval(&basic_info.system_time);
+    usage.ru_stime = time_value_t_to_timeval(basic_info.system_time);
 
     Ok(KERN_SUCCESS)
 }
 
 // this should always be called before get_stats since they both consume the clock
 pub fn get_thread_cpu_time() -> Result<timespec, SporkError> {
-    let mut thread_times = task_thread_times_info::new();
-    let thread_times_ptr = (&mut thread_times as task_thread_times_info_t) as libc::uintptr_t;
+    let mut thread_times: MaybeUninit<task_thread_times_info> = MaybeUninit::zeroed();
     let mut thread_times_count = TASK_THREAD_TIMES_INFO_COUNT;
     let _ = map_mach_resp(unsafe {
-        task_info(
+        libc::task_info(
             mach_task_self(),
             TASK_THREAD_TIMES_INFO,
-            thread_times_ptr,
+            thread_times.as_mut_ptr().cast(),
             &mut thread_times_count,
         )
     })?;
 
-    // Appears the Linux equivilent to this actually is a compination of CPU and USER times
+    let thread_times = unsafe { thread_times.assume_init() };
+
+    // Appears the Linux equivalent to this actually is a combination of CPU and USER times
     // Ok(time_value_t_to_timespec(&(thread_times.user_time)))
     // For now lets combine (Which is what clock_gettime appears to do)
-    Ok(merge_thread_times_to_timespec(&thread_times))
+    Ok(merge_thread_times_to_timespec(thread_times))
 }
 
 pub fn get_stats(kind: &StatType) -> Result<rusage, SporkError> {
@@ -124,16 +132,18 @@ pub fn get_stats(kind: &StatType) -> Result<rusage, SporkError> {
         StatType::Thread => (Some(get_thread_cpu_time()?), None),
     };
 
-    let mut usage = unsafe { std::mem::MaybeUninit::zeroed().assume_init() };
+    let mut usage = MaybeUninit::zeroed();
     if let Some(r_code) = code {
-        let _ = map_posix_resp(unsafe { libc::getrusage(r_code, &mut usage) })?;
+        let _ = map_posix_resp(unsafe { libc::getrusage(r_code, usage.as_mut_ptr()) })?;
     } else {
-        let _ = get_rusage_from_mach(&mut usage)?;
+        let _ = unsafe { get_rusage_from_mach(usage.assume_init_mut())? };
     }
 
-    if t_times.is_some() {
+    let mut usage = unsafe { usage.assume_init() };
+
+    if let Some(t_times) = t_times {
         // use clock_gettime results for threads
-        usage.ru_utime = timespec_to_timeval(&t_times.unwrap());
+        usage.ru_utime = timespec_to_timeval(t_times);
     }
 
     Ok(usage)
@@ -146,6 +156,121 @@ pub fn get_cpu_time(val: &rusage) -> f64 {
     };
 
     (times.sec as f64) + (times.usec as f64 / 1000000_f64)
+}
+
+/// Poke the maximum CPU frequency from IOReg on Apple Silicon systems in Hz.
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub fn poke_apple_silicon_cpu_freq() -> Result<u32, SporkError> {
+    use apple_sys::IOKit::{
+        kCFAllocatorDefault, kCFAllocatorNull, kIOMainPortDefault, CFDataGetBytes, CFDataGetLength, CFIndex, CFRange,
+        CFRelease, CFStringBuiltInEncodings_kCFStringEncodingUTF8, CFStringCreateWithBytesNoCopy, IOIteratorNext,
+        IOObjectRelease, IORegistryEntryCreateCFProperty, IORegistryEntryGetName, IOServiceGetMatchingServices,
+        IOServiceMatching,
+    };
+
+    use std::ffi::CStr;
+    const VOLTAGE_STATE5_SRAM: &[u8] = b"voltage-states5-sram";
+
+    // SAFETY: IOServiceMatching accepts a C string for name.
+    // https://developer.apple.com/documentation/iokit/1514687-ioservicematching
+    let matching = unsafe {
+        let matching = IOServiceMatching(b"AppleARMIODevice\0".as_ptr().cast());
+        if matching.is_null() {
+            return Err(SporkError::unimplemented());
+        }
+        matching
+    };
+
+    let mut iter = 0;
+    // SAFETY: matching has been checked to be not null. iter is always initialized and aligned.
+    let _ = map_mach_resp(unsafe { IOServiceGetMatchingServices(kIOMainPortDefault, matching, &mut iter) })?;
+
+    // io_name_t is defined as an array of 128 chars.
+    // https://developer.apple.com/documentation/kernel/io_name_t
+    let mut name = [0u8; 128];
+
+    let entry = 'entry: {
+        loop {
+            // SAFETY: Even if iter is invalid, this is safe to call, and will return 0.
+            let entry = unsafe { IOIteratorNext(iter) };
+            if entry == 0 {
+                break;
+            }
+            // SAFETY: name is io_name_t, which has size of 128 chars. It remains alive until
+            // the end of this function.
+            if map_mach_resp(unsafe { IORegistryEntryGetName(entry, name.as_mut_ptr().cast()) }).is_err() {
+                // SAFETY: An error occurred so we must release the current entry.
+                unsafe {
+                    IOObjectRelease(entry);
+                    continue;
+                }
+            }
+
+            // IORegistryEntryName always returns a C-string name assigned to a registry entry,
+            // if there is no error.
+            // https://developer.apple.com/documentation/iokit/1514323-ioregistryentrygetname
+            let name = CStr::from_bytes_until_nul(&name).expect("kernel iterator should always return null-terminator");
+            if name.to_bytes() == b"pmgr" {
+                break 'entry entry;
+            } else {
+                // SAFETY: We are finished with the entry and should release it.
+                unsafe {
+                    IOObjectRelease(entry);
+                }
+            }
+        }
+
+        return Err(SporkError::unimplemented());
+    };
+
+    let p_core_ref = unsafe {
+        // SAFETY: CFStringCreateWithBytesNoCopy does not accept null-terminators,
+        // and does not need to be deallocated since we're using the static string
+        // as the backing memory.
+        let prop_name = CFStringCreateWithBytesNoCopy(
+            kCFAllocatorDefault,
+            VOLTAGE_STATE5_SRAM.as_ptr(),
+            VOLTAGE_STATE5_SRAM.len() as CFIndex,
+            CFStringBuiltInEncodings_kCFStringEncodingUTF8,
+            0,
+            kCFAllocatorNull,
+        );
+
+        // SAFETY: CFStringCreateWithBytesNoCopy is infallible, so prop_name is always valid.
+        IORegistryEntryCreateCFProperty(entry, prop_name, kCFAllocatorDefault, 0)
+    };
+
+    if p_core_ref.is_null() {
+        return Err(SporkError::unimplemented());
+    }
+
+    // SAFETY: p_core_ref has been checked for null.
+    let p_core_len = unsafe { CFDataGetLength(p_core_ref.cast()) };
+    if p_core_len < 8 {
+        return Err(SporkError::unimplemented());
+    }
+
+    let range = CFRange {
+        location: p_core_len - 8,
+        length: 4,
+    };
+
+    let mut cpu_freq = [0u8; 4];
+    // SAFETY: p_core_len must be at least 8 bytes as that is the minimum length of
+    // two integers that represent a frequency/power state tuple.
+    // Therefore, the 4 byte range requested, from 8 bytes before the end of the buffer,
+    // always falls within the buffer of the data p_core_ref points to.
+    unsafe { CFDataGetBytes(p_core_ref.cast(), range, cpu_freq.as_mut_ptr()) }
+
+    // SAFETY: p_core_ref is not null. entry and iter are invalid after
+    // this block, and are no longer used.
+    unsafe {
+        CFRelease(p_core_ref);
+        IOObjectRelease(entry);
+        IOObjectRelease(iter);
+    }
+
+    Ok(u32::from_le_bytes(cpu_freq))
 }
 
 // -----------------------------------------

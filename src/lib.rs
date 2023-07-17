@@ -57,19 +57,9 @@ pub type CLong = i32;
 #[cfg(target_pointer_width = "64")]
 pub type CLong = i64;
 
-#[cfg(target_os = "macos")]
-extern crate mach;
-
-extern crate chrono;
-extern crate kernel32;
-extern crate libc;
-extern crate psapi;
-extern crate sys_info;
-extern crate thread_id;
-extern crate winapi;
-
 mod utils;
 
+use std::fmt::{Display, Formatter};
 use utils::History;
 
 use std::io::Error as IoError;
@@ -104,6 +94,12 @@ pub struct SporkError {
     kind: SporkErrorKind,
 }
 
+impl Display for SporkError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {}", &self.desc, &self.details))
+    }
+}
+
 impl SporkError {
     /// Create a new SporkError instance
     pub fn new<T: Into<String>>(kind: SporkErrorKind, details: T) -> SporkError {
@@ -114,9 +110,9 @@ impl SporkError {
         };
 
         SporkError {
-            desc: desc,
+            desc,
             details: details.into(),
-            kind: kind,
+            kind,
         }
     }
 
@@ -128,11 +124,6 @@ impl SporkError {
     /// Read the error's kind
     pub fn kind(&self) -> &SporkErrorKind {
         &self.kind
-    }
-
-    /// Read a formatted string consisting of error desc and details
-    pub fn to_string(&self) -> String {
-        format!("{}: {}", &self.desc, &self.details)
     }
 
     /// Create a new `Error` instance from a borrowed str.
@@ -222,7 +213,7 @@ pub struct Stats {
 impl Stats {
     pub fn new_empty(kind: StatType) -> Stats {
         Stats {
-            kind: kind,
+            kind,
             polled: 0,
             duration: 0,
             cpu_time: 0_f64,
@@ -272,9 +263,9 @@ impl Spork {
     pub fn new() -> Result<Spork, SporkError> {
         Ok(Spork {
             history: History::default(),
-            platform: utils::get_platform()?,
+            platform: utils::get_platform(),
             clock: utils::get_cpu_speed()?,
-            cpus: utils::get_num_cores()?,
+            cpus: utils::get_num_cores(),
             started: utils::now_ms(),
         })
     }
@@ -333,8 +324,8 @@ impl Spork {
         let stats = Stats {
             kind: kind.clone(),
             polled: now,
-            duration: duration,
-            cpu_time: cpu_time,
+            duration,
+            cpu_time,
             cpu: cpu_percent,
             memory: (usage.ru_maxrss as u64) * 1000,
             uptime: utils::safe_unsigned_sub(now, self.started),
@@ -433,12 +424,12 @@ impl Spork {
         let stats = Stats {
             kind: kind.clone(),
             polled: now,
-            duration: duration,
-            cpu_time: cpu_time,
+            duration,
+            cpu_time,
             cpu: cpu_percent,
             memory: (usage.ru_maxrss as u64) * 1000,
             uptime: utils::safe_unsigned_sub(now, self.started),
-            cores: cores,
+            cores,
         };
 
         self.history.set_last(&kind, stats.clone());
